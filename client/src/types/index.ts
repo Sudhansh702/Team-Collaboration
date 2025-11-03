@@ -32,30 +32,31 @@ export interface Channel {
   description?: string;
   teamId: string;
   type: 'public' | 'private';
-  members: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Message {
-  _id: string;
-  channelId: string;
-  senderId: string;
-  content: string;
-  type: 'text' | 'file' | 'image' | 'link';
-  fileUrl?: string;
-  fileSize?: number;
-  fileName?: string;
-  replyTo?: string;
-  reactions: Reaction[];
+  members: string[] | User[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Reaction {
-  userId: string;
+  userId: string | User;
   emoji: string;
 }
+
+export interface Message {
+  _id: string;
+  channelId: string;
+  senderId: string | User;
+  content: string;
+  type: 'text' | 'file' | 'image' | 'link';
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  replyTo?: string | Message;
+  reactions: Reaction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 export interface Task {
   _id: string;

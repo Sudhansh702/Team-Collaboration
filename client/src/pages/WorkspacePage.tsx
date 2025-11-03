@@ -35,6 +35,7 @@ import channelService from '../services/channel.service';
 import teamService from '../services/team.service';
 import { Channel, Team } from '../types';
 import { useAuth } from '../context/AuthContext';
+import MessagesPanel from '../components/MessagesPanel';
 
 const DRAWER_WIDTH = 240;
 
@@ -279,22 +280,10 @@ const WorkspacePage = () => {
           )}
 
           {selectedChannel ? (
-            <Paper sx={{ p: 3, height: '100%' }}>
-              <Typography variant="h5" gutterBottom>
-                {selectedChannel.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                {selectedChannel.description || 'No description'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {selectedChannel.type === 'private' ? 'Private' : 'Public'} Channel • {selectedChannel.members.length} member{selectedChannel.members.length !== 1 ? 's' : ''}
-              </Typography>
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="body1" color="text.secondary">
-                  Channel view coming soon. Messages will be displayed here.
-                </Typography>
-              </Box>
-            </Paper>
+            <MessagesPanel
+              channelId={selectedChannel._id}
+              channelName={selectedChannel.name}
+            />
           ) : (
             <Paper sx={{ p: 3, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
