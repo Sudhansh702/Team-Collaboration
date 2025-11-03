@@ -1,0 +1,359 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Button,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Alert,
+  Paper,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
+} from '@mui/material';
+import {
+  Settings,
+  Add,
+  Message,
+  Lock
+} from '@mui/icons-material';
+import channelService from '../services/channel.service';
+import teamService from '../services/team.service';
+import { Channel, Team } from '../types';
+import { useAuth } from '../context/AuthContext';
+
+const DRAWER_WIDTH = 240;
+
+const WorkspacePage = () => {
+  const { teamId } = useParams<{ teamId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [team, setTeam] = useState<Team | null>(null);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [createChannelDialogOpen, setCreateChannelDialogOpen] = useState(false);
+  const [channelFormData, setChannelFormData] = useState({
+    name: '',
+    description: '',
+    type: 'public' as 'public' | 'private'
+  });
+
+  useEffect(() => {
+    if (teamId) {
+      loadData();
+    }
+  }, [teamId]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [teamData, channelsData] = await Promise.all([
+        teamService.getTeamById(teamId!),
+        channelService.getTeamChannels(teamId!)
+      ]);
+      setTeam(teamData);
+      setChannels(channelsData);
+      if (channelsData.length > 0 && !selectedChannel) {
+        setSelectedChannel(channelsData[0]);
+      }
+      setError('');
+    } catch (err: any) {
+      setError(err.message || 'Failed to load workspace');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateChannel = async () => {
+    try {
+      setError('');
+      const channel = await channelService.createChannel(
+        channelFormData.name.trim(),
+        teamId!,
+        channelFormData.description.trim(),
+        channelFormData.type
+      );
+      setChannels([...channels, channel]);
+      setCreateChannelDialogOpen(false);
+      setChannelFormData({ name: '', description: '', type: 'public' });
+      setSelectedChannel(channel);
+      alert('Channel created successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create channel');
+    }
+  };
+
+  const isOwner = () => {
+    if (!team || !user || !user._id) {
+      console.log('isOwner: missing data', { hasTeam: !!team, hasUser: !!user, hasUserId: !!(user && user._id) });
+      return false;
+    }
+    
+    try {
+      // Handle ownerId - can be string or populated object
+      let ownerIdStr: string;
+      
+      // Check if ownerId is an object with _id property (populated)
+      if (team.ownerId && typeof team.ownerId === 'object' && '_id' in team.ownerId) {
+        // Populated ownerId object
+        ownerIdStr = String((team.ownerId as any)._id);
+      } else if (typeof team.ownerId === 'string') {
+        // String ownerId
+        ownerIdStr = team.ownerId;
+      } else if (team.ownerId) {
+        // Try to convert to string
+        ownerIdStr = String(team.ownerId);
+      } else {
+        console.log('isOwner: ownerId is null/undefined');
+        return false;
+      }
+      
+      // Handle user._id - ensure it's a string
+      const userIdStr = String(user._id);
+      
+      // Debug logging
+      console.log('isOwner check:', {
+        ownerId: ownerIdStr,
+        userId: userIdStr,
+        match: ownerIdStr === userIdStr,
+        teamOwnerIdType: typeof team.ownerId,
+        userType: typeof user._id
+      });
+      
+      // Compare both as strings
+      return ownerIdStr === userIdStr;
+    } catch (error) {
+      console.error('Error checking owner:', error, { team, user });
+      return false;
+    }
+  };
+
+  const isAdmin = () => {
+    if (isOwner()) return true;
+    if (!team || !user || !user._id) return false;
+    const userIdStr = user._id.toString();
+    const member = team.members.find((m) => {
+      const memberIdStr = typeof m.userId === 'object' && m.userId && '_id' in m.userId 
+        ? (m.userId as any)._id.toString() 
+        : m.userId.toString();
+      return memberIdStr === userIdStr;
+    });
+    return member?.role === 'admin' || member?.role === 'owner';
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', height: '100vh' }}>
+        <Typography sx={{ p: 4 }}>Loading workspace...</Typography>
+      </Box>
+    );
+  }
+
+  if (!team) {
+    return (
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <Alert severity="error">Team not found</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Sidebar */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box'
+          }
+        }}
+      >
+        <Toolbar>
+          <Typography variant="h6" noWrap component="div">
+            {team.name}
+          </Typography>
+        </Toolbar>
+        <Box sx={{ overflow: 'auto', p: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Channels
+            </Typography>
+            {team && user && (
+              <IconButton 
+                size="small" 
+                onClick={() => setCreateChannelDialogOpen(true)}
+                title="Create Channel"
+                color="primary"
+              >
+                <Add />
+              </IconButton>
+            )}
+          </Box>
+          {channels.length === 0 ? (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                No channels yet
+              </Typography>
+              {(isOwner() || isAdmin()) && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Create a channel to get started
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <List>
+              {channels.map((channel) => (
+                <ListItem key={channel._id} disablePadding>
+                  <ListItemButton
+                    selected={selectedChannel?._id === channel._id}
+                    onClick={() => setSelectedChannel(channel)}
+                  >
+                    <ListItemIcon>
+                      {channel.type === 'private' ? <Lock fontSize="small" /> : <Message fontSize="small" />}
+                    </ListItemIcon>
+                    <ListItemText primary={channel.name} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
+        <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<Settings />}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (teamId && team && user) {
+                navigate(`/teams/${teamId}/settings`);
+              }
+            }}
+          >
+            Team Settings
+          </Button>
+        </Box>
+      </Drawer>
+
+      {/* Main Content */}
+      <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <AppBar position="static" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+          <Toolbar>
+            <Typography variant="h6" color="text.primary">
+              {selectedChannel ? selectedChannel.name : 'Select a channel'}
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+              {error}
+            </Alert>
+          )}
+
+          {!error && channels.length === 0 && !loading && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              No channels available. {(isOwner() || isAdmin()) && 'Create a channel to get started!'}
+            </Alert>
+          )}
+
+          {selectedChannel ? (
+            <Paper sx={{ p: 3, height: '100%' }}>
+              <Typography variant="h5" gutterBottom>
+                {selectedChannel.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {selectedChannel.description || 'No description'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {selectedChannel.type === 'private' ? 'Private' : 'Public'} Channel • {selectedChannel.members.length} member{selectedChannel.members.length !== 1 ? 's' : ''}
+              </Typography>
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="body1" color="text.secondary">
+                  Channel view coming soon. Messages will be displayed here.
+                </Typography>
+              </Box>
+            </Paper>
+          ) : (
+            <Paper sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No channel selected
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Select a channel from the sidebar or create a new one
+              </Typography>
+            </Paper>
+          )}
+        </Box>
+      </Box>
+
+      {/* Create Channel Dialog */}
+      <Dialog open={createChannelDialogOpen} onClose={() => setCreateChannelDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create Channel</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Channel Name"
+            fullWidth
+            required
+            value={channelFormData.name}
+            onChange={(e) => setChannelFormData({ ...channelFormData, name: e.target.value })}
+            margin="normal"
+            autoFocus
+          />
+          <TextField
+            label="Description (Optional)"
+            fullWidth
+            multiline
+            rows={3}
+            value={channelFormData.description}
+            onChange={(e) => setChannelFormData({ ...channelFormData, description: e.target.value })}
+            margin="normal"
+          />
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Type</InputLabel>
+            <Select
+              value={channelFormData.type}
+              label="Type"
+              onChange={(e) =>
+                setChannelFormData({ ...channelFormData, type: e.target.value as 'public' | 'private' })
+              }
+            >
+              <MenuItem value="public">Public</MenuItem>
+              <MenuItem value="private">Private</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateChannelDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateChannel} variant="contained" disabled={!channelFormData.name.trim()}>
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default WorkspacePage;
+
