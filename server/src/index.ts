@@ -30,80 +30,57 @@ interface RTCIceCandidateInit {
 
 dotenv.config();
 
+// Allow all origins - can be restricted via CORS_ORIGIN env variable if needed
+const allowAllOrigins = process.env.CORS_ORIGIN !== 'false';
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin
-      if (!origin) return callback(null, true);
-      
-      // Allow localhost and local network IPs
-      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-      const isLocalNetwork = /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) || 
-                             /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin) ||
-                             /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/.test(origin);
-      
-      if (isLocalhost || isLocalNetwork) {
-        callback(null, true);
-      } else {
-        const allowedOrigins = process.env.CLIENT_URL 
-          ? process.env.CLIENT_URL.split(',').map(url => url.trim())
-          : ['http://localhost:3000', 'http://localhost:3003'];
-        const isAllowed = allowedOrigins.some(allowed => origin === allowed || allowed === '*');
-        if (isAllowed) {
+    origin: allowAllOrigins 
+      ? (origin, callback) => {
+          // Allow all origins when CORS_ORIGIN is not set to 'false'
           callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
         }
-      }
-    },
+      : (origin, callback) => {
+          // If CORS_ORIGIN is set to 'false', use the environment variable list
+          if (!origin) return callback(null, true);
+          
+          const allowedOrigins = process.env.CLIENT_URL 
+            ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+            : ['http://localhost:3000', 'http://localhost:3003'];
+          const isAllowed = allowedOrigins.some(allowed => origin === allowed || allowed === '*');
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
     methods: ['GET', 'POST'],
     credentials: true
   }
 });
 
 // Middleware
-const allowedOrigins = process.env.CLIENT_URL 
-  ? process.env.CLIENT_URL.split(',').map(url => url.trim())
-  : ['http://localhost:3000', 'http://localhost:3003'];
-
-// Add production URL to allowed origins if not already present
-const productionUrl = 'https://team-collaboration-mxa8.onrender.com';
-if (!allowedOrigins.includes(productionUrl)) {
-  allowedOrigins.push(productionUrl);
-}
 
 app.use(cors({
-  origin: (origin, callback) => {
-    try {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Allow localhost and local network IPs
-      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-      const isLocalNetwork = /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) || 
-                             /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin) ||
-                             /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/.test(origin);
-      
-      // Check if origin matches any allowed origin (case-insensitive)
-      const isAllowed = allowedOrigins.some(allowed => {
-        return origin === allowed || origin.includes('localhost:300') || allowed === '*';
-      });
-      
-      if (isAllowed || allowedOrigins.includes('*') || isLocalhost || isLocalNetwork) {
+  origin: allowAllOrigins 
+    ? (origin, callback) => {
+        // Allow all origins when CORS_ORIGIN is not set to 'false'
         callback(null, true);
-      } else {
-        console.log('CORS blocked origin:', origin, 'Allowed origins:', allowedOrigins);
-        // For preflight requests, return false instead of error to allow proper CORS response
-        callback(null, false);
       }
-    } catch (error) {
-      console.error('Error in CORS origin check:', error);
-      // On error, reject the request gracefully
-      callback(null, false);
-    }
-  },
+    : (origin, callback) => {
+        // If CORS_ORIGIN is set to 'false', use the environment variable list
+        const allowedOrigins = process.env.CLIENT_URL 
+          ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+          : ['http://localhost:3000', 'http://localhost:3003'];
+        
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
