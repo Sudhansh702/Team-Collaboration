@@ -8,7 +8,8 @@ import {
   Paper,
   Avatar,
   Button,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material';
 import {
   CallEnd,
@@ -44,6 +45,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [callStatus, setCallStatus] = useState<'connecting' | 'ringing' | 'in-call' | 'ended'>('connecting');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -101,21 +103,24 @@ const CallWindow: React.FC<CallWindowProps> = ({
 
   const handleInitiateCall = async () => {
     try {
+      setError(null);
       setCallStatus('ringing');
       await callService.initiateCall(
         user!._id!,
         otherUserId,
         callType
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error initiating call:', error);
-      alert('Failed to initiate call. Please check your camera/microphone permissions.');
-      onClose();
+      const errorMessage = error.message || 'Failed to initiate call. Please check your camera/microphone permissions.';
+      setError(errorMessage);
+      setCallStatus('ended');
     }
   };
 
   const handleAnswerCall = async () => {
     try {
+      setError(null);
       setCallStatus('connecting');
       await callService.answerCall(
         user!._id!,
@@ -123,10 +128,11 @@ const CallWindow: React.FC<CallWindowProps> = ({
         callType
       );
       setCallStatus('in-call');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error answering call:', error);
-      alert('Failed to answer call. Please check your camera/microphone permissions.');
-      onClose();
+      const errorMessage = error.message || 'Failed to answer call. Please check your camera/microphone permissions.';
+      setError(errorMessage);
+      setCallStatus('ended');
     }
   };
 
@@ -197,6 +203,13 @@ const CallWindow: React.FC<CallWindowProps> = ({
       }}
     >
       <DialogContent sx={{ p: 0, position: 'relative' }}>
+        {error && (
+          <Box sx={{ p: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
+            <Alert severity="error" onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          </Box>
+        )}
         <Box sx={{ position: 'relative', width: '100%', height: '500px', bgcolor: 'black' }}>
           {/* Remote Video */}
           {callType === 'video' && (

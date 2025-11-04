@@ -154,9 +154,23 @@ class CallService {
         to,
         offer: offer
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error initiating call:', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        throw new Error('Camera/microphone permission denied. Please allow access in your browser settings and try again.');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        throw new Error('No camera or microphone found. Please connect a camera/microphone and try again.');
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        throw new Error('Camera/microphone is being used by another application. Please close other apps and try again.');
+      } else if (error.name === 'OverconstrainedError') {
+        throw new Error('Camera/microphone constraints cannot be satisfied. Please check your device settings.');
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Failed to access camera/microphone. Please check your browser permissions and try again.');
+      }
     }
   }
 
@@ -235,9 +249,23 @@ class CallService {
         to,
         answer: answer
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error answering call:', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        throw new Error('Camera/microphone permission denied. Please allow access in your browser settings and try again.');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        throw new Error('No camera or microphone found. Please connect a camera/microphone and try again.');
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        throw new Error('Camera/microphone is being used by another application. Please close other apps and try again.');
+      } else if (error.name === 'OverconstrainedError') {
+        throw new Error('Camera/microphone constraints cannot be satisfied. Please check your device settings.');
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Failed to access camera/microphone. Please check your browser permissions and try again.');
+      }
     }
   }
 
