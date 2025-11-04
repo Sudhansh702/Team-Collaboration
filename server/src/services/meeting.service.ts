@@ -48,6 +48,26 @@ export class MeetingService {
     await meeting.populate('participants', 'username email avatar');
     await meeting.populate('teamId', 'name');
 
+    // Create notifications for participants (except organizer)
+    const organizerUser = await User.findById(organizerId);
+    const organizerName = organizerUser?.username || 'Someone';
+    
+    for (const participantId of participants) {
+      if (participantId !== organizerId) {
+        try {
+          await NotificationService.createNotification(
+            participantId,
+            'meeting',
+            'Meeting Scheduled',
+            `${organizerName} scheduled a meeting: "${title}"`,
+            meeting._id.toString()
+          );
+        } catch (error) {
+          console.error(`Failed to create meeting notification for ${participantId}:`, error);
+        }
+      }
+    }
+
     return meeting;
   }
 
