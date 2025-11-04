@@ -212,6 +212,97 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Call signaling events for WebRTC
+  socket.on('call-initiate', (data: { 
+    from: string; 
+    to: string; 
+    callType: 'audio' | 'video';
+    teamId?: string;
+  }) => {
+    console.log(`Call initiated from ${data.from} to ${data.to}`);
+    // Send call notification to the recipient
+    socket.to(`user:${data.to}`).emit('incoming-call', {
+      from: data.from,
+      callType: data.callType,
+      teamId: data.teamId
+    });
+  });
+
+  socket.on('call-answer', (data: { 
+    from: string; 
+    to: string; 
+    answer: RTCSessionDescriptionInit;
+  }) => {
+    console.log(`Call answered by ${data.from}`);
+    socket.to(`user:${data.to}`).emit('call-answered', {
+      from: data.from,
+      answer: data.answer
+    });
+  });
+
+  socket.on('call-reject', (data: { 
+    from: string; 
+    to: string; 
+  }) => {
+    console.log(`Call rejected by ${data.from}`);
+    socket.to(`user:${data.to}`).emit('call-rejected', {
+      from: data.from
+    });
+  });
+
+  socket.on('call-end', (data: { 
+    from: string; 
+    to: string; 
+  }) => {
+    console.log(`Call ended by ${data.from}`);
+    socket.to(`user:${data.to}`).emit('call-ended', {
+      from: data.from
+    });
+  });
+
+  // WebRTC signaling
+  socket.on('offer', (data: { 
+    to: string; 
+    offer: RTCSessionDescriptionInit;
+  }) => {
+    socket.to(`user:${data.to}`).emit('offer', {
+      from: socket.id,
+      offer: data.offer
+    });
+  });
+
+  socket.on('answer', (data: { 
+    to: string; 
+    answer: RTCSessionDescriptionInit;
+  }) => {
+    socket.to(`user:${data.to}`).emit('answer', {
+      from: socket.id,
+      answer: data.answer
+    });
+  });
+
+  socket.on('ice-candidate', (data: { 
+    to: string; 
+    candidate: RTCIceCandidateInit;
+  }) => {
+    socket.to(`user:${data.to}`).emit('ice-candidate', {
+      from: socket.id,
+      candidate: data.candidate
+    });
+  });
+
+  // Join user room for call signaling
+  socket.on('join-user-room', (userId: string) => {
+    socket.join(`user:${userId}`);
+    console.log(`User ${socket.id} joined user room: ${userId}`);
+  });
+
+  // Leave user room
+  socket.on('leave-user-room', (userId: string) => {
+    socket.leave(`user:${userId}`);
+    console.log(`User ${socket.id} left user room: ${userId}`);
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });

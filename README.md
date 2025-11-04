@@ -197,12 +197,30 @@ Frontend will run on `http://localhost:3000`
 - `add-reaction` / `remove-reaction` / `message-updated` - Message reactions
 - `update-message` / `delete-message` - Message updates
 
-## Next Steps (Phase 4)
-- File upload and sharing
-- Voice and video calls
-- Advanced notifications
-- Search functionality
-- Analytics and reporting
+## Phase 4 Status: ✅ Complete
+
+### Implemented Features
+- ✅ File upload and sharing (backend + frontend)
+- ✅ Search functionality (backend + frontend)
+- ✅ Advanced notifications UI (bell icon, dropdown, filters, real-time updates)
+- ✅ Analytics and reporting (dashboard, statistics, tables)
+
+### API Endpoints Available
+
+#### File Upload (`/api/messages`)
+- `POST /api/messages/upload` - Upload file and create message
+- `GET /api/files/:filename` - Download file
+
+#### Search (`/api/search`)
+- `GET /api/search?q=query&type=all&teamId=...&channelId=...` - Search messages, channels, teams
+
+## Phase 5 Status: 🚧 In Progress
+
+### Features to Implement
+- ⏳ Voice/video calls using WebRTC
+- ⏳ Call signaling via Socket.io
+- ⏳ Call UI components
+- ⏳ Call integration with workspace
 
 ## Development
 

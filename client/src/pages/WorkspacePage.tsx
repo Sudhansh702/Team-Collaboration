@@ -40,6 +40,9 @@ import { useAuth } from '../context/AuthContext';
 import MessagesPanel from '../components/MessagesPanel';
 import SearchBar from '../components/SearchBar';
 import NotificationCenter from '../components/NotificationCenter';
+import CallWindow from '../components/CallWindow';
+import IncomingCallModal from '../components/IncomingCallModal';
+import callService from '../services/call.service';
 
 const DRAWER_WIDTH = 240;
 
@@ -61,12 +64,63 @@ const WorkspacePage = () => {
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  
+  // Call state
+  const [incomingCall, setIncomingCall] = useState<{ from: string; callType: 'audio' | 'video'; callerName?: string } | null>(null);
+  const [callWindow, setCallWindow] = useState<{ open: boolean; otherUserId: string; otherUserName: string; callType: 'audio' | 'video'; isIncoming: boolean } | null>(null);
 
   useEffect(() => {
     if (teamId) {
       loadData();
     }
   }, [teamId]);
+
+  // Initialize call service and handle incoming calls
+  useEffect(() => {
+    if (!user || !user._id) return;
+
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const socket = callService.initializeSocket(socketUrl);
+    
+    // Join user room for call signaling
+    callService.joinUserRoom(user._id);
+
+    // Listen for incoming calls
+    callService.on('incoming-call', (data: { from: string; callType: 'audio' | 'video'; teamId?: string }) => {
+      // TODO: Fetch caller name from API
+      setIncomingCall({
+        from: data.from,
+        callType: data.callType,
+        callerName: 'User' // Will be replaced with actual name
+      });
+    });
+
+    // Listen for call answered
+    callService.on('call-answered', () => {
+      if (callWindow) {
+        setCallWindow({ ...callWindow, open: true });
+      }
+    });
+
+    // Listen for call rejected/ended
+    callService.on('call-rejected', () => {
+      setIncomingCall(null);
+      setCallWindow(null);
+    });
+
+    callService.on('call-ended', () => {
+      setIncomingCall(null);
+      setCallWindow(null);
+    });
+
+    return () => {
+      callService.leaveUserRoom(user._id!);
+      callService.off('incoming-call');
+      callService.off('call-answered');
+      callService.off('call-rejected');
+      callService.off('call-ended');
+    };
+  }, [user, callWindow]);
 
   const loadData = async () => {
     try {
@@ -187,6 +241,36 @@ const WorkspacePage = () => {
       return memberIdStr === userIdStr;
     });
     return member?.role === 'admin' || member?.role === 'owner';
+  };
+
+  // Call handlers
+  const handleAnswerCall = () => {
+    if (!incomingCall || !user) return;
+    
+    setCallWindow({
+      open: true,
+      otherUserId: incomingCall.from,
+      otherUserName: incomingCall.callerName || 'User',
+      callType: incomingCall.callType,
+      isIncoming: true
+    });
+    
+    setIncomingCall(null);
+  };
+
+  const handleRejectCall = () => {
+    if (!incomingCall || !user) return;
+    
+    callService.rejectCall(incomingCall.from, user._id!);
+    setIncomingCall(null);
+  };
+
+  const handleCloseCallWindow = () => {
+    if (callWindow && user) {
+      callService.endCall(user._id!, callWindow.otherUserId);
+    }
+    setCallWindow(null);
+    callService.cleanup();
   };
 
   if (loading) {
@@ -437,6 +521,29 @@ const WorkspacePage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <IncomingCallModal
+          open={!!incomingCall}
+          callerName={incomingCall.callerName || 'User'}
+          callType={incomingCall.callType}
+          onAnswer={handleAnswerCall}
+          onReject={handleRejectCall}
+        />
+      )}
+
+      {/* Call Window */}
+      {callWindow && (
+        <CallWindow
+          open={callWindow.open}
+          onClose={handleCloseCallWindow}
+          otherUserId={callWindow.otherUserId}
+          otherUserName={callWindow.otherUserName}
+          callType={callWindow.callType}
+          isIncoming={callWindow.isIncoming}
+        />
+      )}
     </Box>
   );
 };
