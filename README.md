@@ -231,6 +231,30 @@ Frontend will run on `http://localhost:3000`
 - `call-end` / `call-ended` - Call ending
 - `offer` / `answer` / `ice-candidate` - WebRTC signaling
 
+## Phase 6 Status: 🚧 In Progress
+
+### Implemented Features
+- ✅ Task Management UI (create, edit, delete tasks)
+- ✅ Task list with filtering and search
+- ✅ Task cards with status, priority, due date
+- ✅ Task integration in workspace with tabs
+- ✅ Task assignment to team members
+- ✅ Task status and priority management
+
+### Features to Implement
+- ⏳ Automatic notification generation for tasks
+- ⏳ Enhanced analytics with charts
+- ⏳ UI/UX improvements (dark mode, mentions, etc.)
+
+### API Endpoints Available
+
+#### Tasks (`/api/tasks`)
+- `POST /api/tasks` - Create task
+- `GET /api/tasks/team/:teamId` - Get team tasks
+- `GET /api/tasks/:id` - Get task by ID
+- `PUT /api/tasks/:id` - Update task
+- `DELETE /api/tasks/:id` - Delete task
+
 ## Development
 
 ### Backend Scripts
