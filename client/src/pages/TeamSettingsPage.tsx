@@ -212,6 +212,7 @@ const TeamSettingsPage = () => {
           <Tabs value={tabValue} onChange={(_e, v) => setTabValue(v)} sx={{ mb: 3 }}>
             <Tab label="General" />
             <Tab label="Members" />
+            <Tab label="Analytics" />
           </Tabs>
 
           {tabValue === 0 && (
@@ -350,6 +351,23 @@ const TeamSettingsPage = () => {
                     );
                   })}
               </List>
+            </Box>
+          )}
+
+          {tabValue === 2 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Team Analytics
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                View detailed analytics and insights for this team.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate(`/teams/${id}/analytics`)}
+              >
+                View Full Analytics Dashboard
+              </Button>
             </Box>
           )}
         </Paper>

@@ -25,8 +25,14 @@ export class MessageService {
       throw new Error('Team not found');
     }
 
-    // Check if user is team member
-    const isOwner = team.ownerId.toString() === senderId;
+    // Check if user is team member (handle populated ownerId)
+    let ownerIdStr = '';
+    if (typeof team.ownerId === 'object' && team.ownerId && '_id' in team.ownerId) {
+      ownerIdStr = (team.ownerId as any)._id.toString();
+    } else {
+      ownerIdStr = (team.ownerId as any).toString();
+    }
+    const isOwner = ownerIdStr === senderId;
     const isMember = team.members.some(
       (m) => m.userId.toString() === senderId
     );
@@ -59,7 +65,7 @@ export class MessageService {
     });
 
     await message.save();
-    await message.populate('senderId', 'username email avatar');
+    await message.populate('senderId', 'username email avatar _id');
     await message.populate('replyTo', 'content senderId');
 
     return message;
@@ -82,8 +88,14 @@ export class MessageService {
       throw new Error('Team not found');
     }
 
-    // Check if user is team member
-    const isOwner = team.ownerId.toString() === userId;
+    // Check if user is team member (handle populated ownerId)
+    let ownerIdStr = '';
+    if (typeof team.ownerId === 'object' && team.ownerId && '_id' in team.ownerId) {
+      ownerIdStr = (team.ownerId as any)._id.toString();
+    } else {
+      ownerIdStr = (team.ownerId as any).toString();
+    }
+    const isOwner = ownerIdStr === userId;
     const isMember = team.members.some(
       (m) => m.userId.toString() === userId
     );
@@ -110,7 +122,7 @@ export class MessageService {
 
     // Fetch messages
     const messages = await Message.find(query)
-      .populate('senderId', 'username email avatar')
+      .populate('senderId', 'username email avatar _id')
       .populate('replyTo', 'content senderId')
       .sort({ createdAt: -1 })
       .limit(limit);
@@ -124,7 +136,7 @@ export class MessageService {
     userId: string
   ): Promise<IMessage | null> {
     const message = await Message.findById(messageId)
-      .populate('senderId', 'username email avatar')
+      .populate('senderId', 'username email avatar _id')
       .populate('replyTo', 'content senderId');
 
     if (!message) {
@@ -142,7 +154,14 @@ export class MessageService {
       throw new Error('Team not found');
     }
 
-    const isOwner = team.ownerId.toString() === userId;
+    // Check if user is team member (handle populated ownerId)
+    let ownerIdStr = '';
+    if (typeof team.ownerId === 'object' && team.ownerId && '_id' in team.ownerId) {
+      ownerIdStr = (team.ownerId as any)._id.toString();
+    } else {
+      ownerIdStr = (team.ownerId as any).toString();
+    }
+    const isOwner = ownerIdStr === userId;
     const isMember = team.members.some(
       (m) => m.userId.toString() === userId
     );
@@ -171,7 +190,7 @@ export class MessageService {
 
     message.content = content;
     await message.save();
-    await message.populate('senderId', 'username email avatar');
+    await message.populate('senderId', 'username email avatar _id');
     await message.populate('replyTo', 'content senderId');
 
     return message;
@@ -197,11 +216,21 @@ export class MessageService {
       throw new Error('Team not found');
     }
 
-    const isOwner = team.ownerId.toString() === userId;
-    const isSender = message.senderId.toString() === userId;
-    const member = team.members.find((m) => m.userId.toString() === userId);
+    // Check if user is team member (handle populated ownerId)
+    let ownerIdStr = '';
+    if (typeof team.ownerId === 'object' && team.ownerId && '_id' in team.ownerId) {
+      ownerIdStr = (team.ownerId as any)._id.toString();
+    } else {
+      ownerIdStr = (team.ownerId as any).toString();
+    }
+    // Ensure both sides are strings for comparison
+    const userIdStr = userId.toString();
+    const isOwner = ownerIdStr === userIdStr;
+    const isSender = message.senderId.toString() === userIdStr;
+    const member = team.members.find((m) => m.userId.toString() === userIdStr);
     const isAdmin = member?.role === 'admin' || member?.role === 'owner';
 
+    // Allow deletion if user is owner, sender, or admin
     if (!isOwner && !isSender && !isAdmin) {
       throw new Error('You do not have permission to delete this message');
     }
@@ -233,7 +262,7 @@ export class MessageService {
     await message.save();
     await message.populate('senderId', 'username email avatar');
     await message.populate('replyTo', 'content senderId');
-    await message.populate('reactions.userId', 'username');
+    await message.populate('reactions.userId', 'username _id');
 
     return message;
   }
@@ -262,7 +291,7 @@ export class MessageService {
     await message.save();
     await message.populate('senderId', 'username email avatar');
     await message.populate('replyTo', 'content senderId');
-    await message.populate('reactions.userId', 'username');
+    await message.populate('reactions.userId', 'username _id');
 
     return message;
   }

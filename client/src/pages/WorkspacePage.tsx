@@ -29,13 +29,17 @@ import {
   Settings,
   Add,
   Message,
-  Lock
+  Lock,
+  PersonAdd,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import channelService from '../services/channel.service';
 import teamService from '../services/team.service';
 import { Channel, Team } from '../types';
 import { useAuth } from '../context/AuthContext';
 import MessagesPanel from '../components/MessagesPanel';
+import SearchBar from '../components/SearchBar';
+import NotificationCenter from '../components/NotificationCenter';
 
 const DRAWER_WIDTH = 240;
 
@@ -54,6 +58,9 @@ const WorkspacePage = () => {
     description: '',
     type: 'public' as 'public' | 'private'
   });
+  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (teamId) {
@@ -97,6 +104,30 @@ const WorkspacePage = () => {
       alert('Channel created successfully!');
     } catch (err: any) {
       setError(err.message || 'Failed to create channel');
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!selectedChannel || !memberEmail.trim()) {
+      return;
+    }
+    try {
+      setError('');
+      const updatedChannel = await channelService.addMember(
+        selectedChannel._id,
+        memberEmail.trim()
+      );
+      // Update the channel in the list
+      setChannels(channels.map(ch => 
+        ch._id === updatedChannel._id ? updatedChannel : ch
+      ));
+      // Update selected channel
+      setSelectedChannel(updatedChannel);
+      setAddMemberDialogOpen(false);
+      setMemberEmail('');
+      alert('Member added successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to add member');
     }
   };
 
@@ -260,13 +291,51 @@ const WorkspacePage = () => {
       <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <AppBar position="static" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
           <Toolbar>
-            <Typography variant="h6" color="text.primary">
+            <Typography variant="h6" color="text.primary" sx={{ flexGrow: 1 }}>
               {selectedChannel ? selectedChannel.name : 'Select a channel'}
             </Typography>
+            <IconButton
+              color="inherit"
+              onClick={() => setSearchOpen(true)}
+              sx={{ mr: 1 }}
+            >
+              <SearchIcon />
+            </IconButton>
+            <NotificationCenter />
+            {selectedChannel && selectedChannel.type === 'private' && (isOwner() || isAdmin()) && (
+              <Button
+                variant="outlined"
+                startIcon={<PersonAdd />}
+                onClick={() => setAddMemberDialogOpen(true)}
+                sx={{ mr: 2, ml: 1 }}
+              >
+                Add Member
+              </Button>
+            )}
           </Toolbar>
         </AppBar>
-
-        <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
+        {searchOpen && (
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <SearchBar
+              onSelectMessage={() => {
+                // Navigate to message - you might need to implement this
+                setSearchOpen(false);
+              }}
+              onSelectChannel={(channelId) => {
+                const channel = channels.find(c => c._id === channelId);
+                if (channel) {
+                  setSelectedChannel(channel);
+                  setSearchOpen(false);
+                }
+              }}
+              onSelectTeam={(teamId) => {
+                navigate(`/workspace/${teamId}`);
+                setSearchOpen(false);
+              }}
+            />
+          </Box>
+        )}
+        <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto', display: searchOpen ? 'none' : 'block' }}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
               {error}
@@ -283,6 +352,7 @@ const WorkspacePage = () => {
             <MessagesPanel
               channelId={selectedChannel._id}
               channelName={selectedChannel.name}
+              team={team}
             />
           ) : (
             <Paper sx={{ p: 3, textAlign: 'center' }}>
@@ -337,6 +407,33 @@ const WorkspacePage = () => {
           <Button onClick={() => setCreateChannelDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleCreateChannel} variant="contained" disabled={!channelFormData.name.trim()}>
             Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Member to Private Channel Dialog */}
+      <Dialog open={addMemberDialogOpen} onClose={() => setAddMemberDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Member to Channel</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Member Email"
+            type="email"
+            fullWidth
+            required
+            value={memberEmail}
+            onChange={(e) => setMemberEmail(e.target.value)}
+            margin="normal"
+            autoFocus
+            helperText="Enter the email of a team member to add to this private channel"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setAddMemberDialogOpen(false);
+            setMemberEmail('');
+          }}>Cancel</Button>
+          <Button onClick={handleAddMember} variant="contained" disabled={!memberEmail.trim()}>
+            Add
           </Button>
         </DialogActions>
       </Dialog>

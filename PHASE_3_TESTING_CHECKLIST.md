@@ -5,57 +5,57 @@
 ### 1. **Real-Time Messaging**
 
 #### 1.1 Message Sending
-- [ ] Select a channel in workspace
-- [ ] Type message in input field
-- [ ] Press Enter or click Send button
-- [ ] Verify: Message appears immediately in chat
-- [ ] Verify: Message shows your username/avatar
-- [ ] Verify: Message shows timestamp
-- [ ] Verify: Message is saved and persists on page refresh
+<!-- - [ ] Select a channel in workspace -->
+<!-- - [ ] Type message in input field -->
+<!-- - [ ] Press Enter or click Send button -->
+<!-- - [ ] Verify: Message appears immediately in chat -->
+<!-- - [ ] Verify: Message shows your username/avatar -->
+<!-- - [ ] Verify: Message shows timestamp -->
+<!-- - [ ] Verify: Message is saved and persists on page refresh -->
 
 #### 1.2 Real-Time Updates (Test with 2 browsers/users)
-- [ ] User A sends a message
+<!-- - [ ] User A sends a message
 - [ ] User B should see message appear instantly (no refresh)
 - [ ] User B sends a message
 - [ ] User A should see message appear instantly
 - [ ] Verify: Both users see messages in correct order
-- [ ] Verify: Messages scroll to bottom automatically
+- [ ] Verify: Messages scroll to bottom automatically -->
 
 #### 1.3 Typing Indicators
-- [ ] User A starts typing
+<!-- - [ ] User A starts typing
 - [ ] User B should see "User A is typing..." indicator
 - [ ] User A stops typing for 3 seconds
-- [ ] User B should see indicator disappear
-- [ ] Test with multiple users typing simultaneously
+- [ ] User B should see indicator disappear -->
+<!-- - [ ] Test with multiple users typing simultaneously -->
 
 #### 1.4 Message Reactions
-- [ ] Click emoji icon on a message
+<!-- - [ ] Click emoji icon on a message
 - [ ] Verify: Reaction appears on message
 - [ ] Click reaction again to toggle
 - [ ] Verify: Multiple users can react to same message
 - [ ] Verify: Reaction count updates correctly
-- [ ] Verify: Reactions persist after page refresh
+- [ ] Verify: Reactions persist after page refresh -->
 
 #### 1.5 Message Editing
-- [ ] Click "..." menu on your own message
+<!-- - [ ] Click "..." menu on your own message
 - [ ] Click "Edit"
 - [ ] Modify message content
 - [ ] Click Send/Update
 - [ ] Verify: Message is updated for all users in real-time
-- [ ] Verify: Updated message shows as edited
+- [ ] Verify: Updated message shows as edited -->
 
 #### 1.6 Message Deletion
-- [ ] Click "..." menu on your own message
+<!-- - [ ] Click "..." menu on your own message
 - [ ] Click "Delete"
 - [ ] Confirm deletion
-- [ ] Verify: Message is removed for all users in real-time
-- [ ] Verify: Non-owners see delete option only on their messages
+- [ ] Verify: Message is removed for all users in real-time -->
+<!-- - [ ] Verify: Non-owners see delete option only on their messages -->
 
 #### 1.7 Message Permissions
-- [ ] Verify: Only team members can send messages
+<!-- - [ ] Verify: Only team members can send messages
 - [ ] Verify: Only message sender can edit their message
 - [ ] Verify: Message sender, admin, or owner can delete messages
-- [ ] Verify: Private channel members can access private channel messages
+- [ ] Verify: Private channel members can access private channel messages -->
 
 ---
 

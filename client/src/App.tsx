@@ -7,6 +7,7 @@ import TeamsPage from './pages/TeamsPage';
 import CreateTeamPage from './pages/CreateTeamPage';
 import TeamSettingsPage from './pages/TeamSettingsPage';
 import WorkspacePage from './pages/WorkspacePage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -59,6 +60,14 @@ function App() {
         element={
           <ProtectedRoute>
             <WorkspacePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teams/:teamId/analytics"
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
           </ProtectedRoute>
         }
       />

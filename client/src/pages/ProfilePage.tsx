@@ -52,10 +52,37 @@ const ProfilePage = () => {
     setLoading(true);
 
     try {
-      const updatedUser = await authService.updateProfile(formData);
+      // Log what we're sending for debugging
+      console.log('Submitting profile update with formData:', {
+        username: formData.username,
+        avatar: formData.avatar || 'empty string',
+        avatarLength: formData.avatar?.length || 0,
+        status: formData.status,
+        formDataKeys: Object.keys(formData)
+      });
+      
+      // Ensure all fields are included, even if empty
+      const updateData = {
+        username: formData.username || '',
+        avatar: formData.avatar || '', // Always include avatar, even if empty
+        status: formData.status || 'offline'
+      };
+      
+      console.log('Update data being sent:', {
+        username: updateData.username || 'empty',
+        avatar: updateData.avatar || 'empty',
+        avatarIncluded: 'avatar' in updateData,
+        status: updateData.status
+      });
+      
+      const updatedUser = await authService.updateProfile(updateData);
       updateUser(updatedUser);
       setSuccess('Profile updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
+      console.error('Profile update error:', err);
       setError(err.message || 'Failed to update profile');
     } finally {
       setLoading(false);

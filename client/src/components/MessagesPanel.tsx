@@ -11,25 +11,32 @@ import {
   Menu,
   MenuItem,
   ListItemText,
-  Divider
+  Divider,
+  LinearProgress,
+  Link
 } from '@mui/material';
 import {
   Send,
   MoreVert,
   Delete,
   Edit,
-  EmojiEmotions
+  EmojiEmotions,
+  AttachFile,
+  Image as ImageIcon,
+  InsertDriveFile,
+  Download
 } from '@mui/icons-material';
 import messageService from '../services/message.service';
-import { Message, User } from '../types';
+import { Message, User, Team } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 interface MessagesPanelProps {
   channelId: string;
   channelName: string;
+  team?: Team | null;
 }
 
-const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName }) => {
+const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, team }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -40,6 +47,10 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
   const [messageMenuAnchor, setMessageMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -158,7 +169,12 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      // If editing a message, update it; otherwise send a new message
+      if (editingMessage) {
+        handleUpdateMessage();
+      } else {
+        handleSendMessage();
+      }
     }
   };
 
@@ -241,6 +257,149 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      handleFileUpload(file);
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!user || !socket) return;
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+      setError('');
+
+      await messageService.uploadFile(
+        channelId,
+        file,
+        newMessage.trim() || undefined,
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
+
+      // The message is already created by the API and broadcast via Socket.io
+      // The server will broadcast it to all users including the sender
+      // We'll receive it via the 'new-message' socket event, so we don't need to add it manually
+      // This ensures consistency across all clients
+
+      setNewMessage('');
+      setSelectedFile(null);
+      setUploadProgress(0);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload file');
+      setSelectedFile(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type === 'image') {
+      return <ImageIcon fontSize="small" />;
+    }
+    return <InsertDriveFile fontSize="small" />;
+  };
+
+  const handleDownloadFile = (fileUrl: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Helper to get correct file URL - handles both relative and absolute URLs
+  const getFileUrl = (fileUrl: string | undefined, fileName?: string): string => {
+    if (!fileUrl && !fileName) return '';
+    
+    // Get server base URL - use SOCKET_URL if available, otherwise derive from API_URL
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
+    // Use SOCKET_URL as the base (it's the server URL), or derive from API_URL
+    let baseUrl = SOCKET_URL || API_URL.replace('/api', '').replace(/\/$/, '');
+    
+    // Ensure baseUrl doesn't have trailing slash
+    baseUrl = baseUrl.replace(/\/$/, '');
+    
+    // If fileUrl is already an absolute URL (http/https), extract the path and rebuild with correct baseUrl
+    if (fileUrl && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+      try {
+        const url = new URL(fileUrl);
+        const path = url.pathname; // e.g., /uploads/filename-timestamp-hash.ext
+        // Rebuild URL with correct baseUrl (fixes port mismatch)
+        return `${baseUrl}${path}`;
+      } catch {
+        // If URL parsing fails, try to extract path manually
+        const pathMatch = fileUrl.match(/\/uploads\/[^?]+/);
+        if (pathMatch) {
+          return `${baseUrl}${pathMatch[0]}`;
+        }
+        // Last resort: use as-is
+        return fileUrl;
+      }
+    }
+    
+    // If fileUrl starts with /uploads/, use it directly with baseUrl
+    if (fileUrl && fileUrl.startsWith('/uploads/')) {
+      return `${baseUrl}${fileUrl}`;
+    }
+    
+    // If fileUrl starts with /uploads (without trailing /), use it directly
+    if (fileUrl && fileUrl.startsWith('/uploads')) {
+      return `${baseUrl}${fileUrl}`;
+    }
+    
+    // If fileUrl is just a filename (no slashes), assume it's in uploads
+    if (fileUrl && !fileUrl.includes('/')) {
+      return `${baseUrl}/uploads/${fileUrl}`;
+    }
+    
+    // If we have fileName, use it
+    if (fileName) {
+      // Extract just the filename if it's a full path
+      const justFileName = fileName.split('/').pop() || fileName;
+      return `${baseUrl}/uploads/${justFileName}`;
+    }
+    
+    // Fallback: try to extract filename from fileUrl
+    if (fileUrl) {
+      // If it contains /uploads/, extract the path part
+      if (fileUrl.includes('/uploads/')) {
+        const path = fileUrl.split('/uploads/')[1];
+        return `${baseUrl}/uploads/${path}`;
+      }
+      // Otherwise, use the last part as filename
+      const filename = fileUrl.split('/').pop() || fileUrl;
+      return `${baseUrl}/uploads/${filename}`;
+    }
+    
+    return '';
+  };
+
   const handleAddReaction = async (messageId: string, emoji: string) => {
     if (!socket || !user) return;
 
@@ -271,11 +430,56 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
   };
 
   const isOwnMessage = (message: Message): boolean => {
-    if (!user) return false;
+    if (!user || !user._id) return false;
+    
+    // Normalize user._id to string
+    const currentUserId = String(user._id);
+    
+    // Handle populated senderId (object) or string senderId
     if (typeof message.senderId === 'object' && message.senderId) {
-      return (message.senderId as User)._id === user._id;
+      const senderId = (message.senderId as User)._id;
+      return String(senderId) === currentUserId;
     }
-    return message.senderId === user._id;
+    
+    // Handle string senderId
+    return String(message.senderId) === currentUserId;
+  };
+
+  const canDeleteMessage = (message: Message): boolean => {
+    // Always allow owner to delete their own messages
+    if (isOwnMessage(message)) return true;
+    
+    // Check if user is team owner or admin
+    if (!team || !user || !user._id) return false;
+    
+    try {
+      // Check if user is team owner
+      let ownerIdStr: string;
+      if (team.ownerId && typeof team.ownerId === 'object' && '_id' in team.ownerId) {
+        ownerIdStr = String((team.ownerId as any)._id);
+      } else if (typeof team.ownerId === 'string') {
+        ownerIdStr = team.ownerId;
+      } else {
+        ownerIdStr = String(team.ownerId);
+      }
+      
+      const userIdStr = String(user._id);
+      const isOwner = ownerIdStr === userIdStr;
+      
+      // Check if user is admin
+      const member = team.members.find((m) => {
+        const memberIdStr = typeof m.userId === 'object' && m.userId && '_id' in m.userId 
+          ? (m.userId as any)._id.toString() 
+          : m.userId.toString();
+        return memberIdStr === userIdStr;
+      });
+      const isAdmin = member?.role === 'admin' || member?.role === 'owner';
+      
+      return isOwner || isAdmin;
+    } catch (error) {
+      console.error('Error checking delete permission:', error);
+      return false;
+    }
   };
 
   const formatTime = (dateString: string): string => {
@@ -342,6 +546,123 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
                     }}
                   >
                     <Typography variant="body2">{message.content}</Typography>
+                    
+                    {/* File/Image Display */}
+                    {message.type === 'image' && message.fileUrl && (() => {
+                      const imageUrl = getFileUrl(message.fileUrl, message.fileName);
+                      console.log('Rendering image:', {
+                        messageId: message._id,
+                        fileUrl: message.fileUrl,
+                        fileName: message.fileName,
+                        constructedUrl: imageUrl
+                      });
+                      return (
+                        <Box sx={{ mt: 1, mb: 1 }}>
+                          <img
+                            src={imageUrl}
+                            alt={message.fileName || 'Image'}
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '400px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            objectFit: 'contain',
+                            display: 'block'
+                          }}
+                          onClick={() => window.open(getFileUrl(message.fileUrl, message.fileName), '_blank')}
+                          onError={(e) => {
+                            const constructedUrl = getFileUrl(message.fileUrl, message.fileName);
+                            console.error('Image load error:', {
+                              originalUrl: message.fileUrl,
+                              constructedUrl: constructedUrl,
+                              fileName: message.fileName,
+                              messageType: message.type,
+                              VITE_SOCKET_URL: import.meta.env.VITE_SOCKET_URL,
+                              VITE_API_URL: import.meta.env.VITE_API_URL
+                            });
+                            
+                            // Try alternative URL construction - use the actual stored fileUrl
+                            // The fileUrl stored in DB should be the full path like: /uploads/filename-timestamp-hash.ext
+                            const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+                            const baseUrl = SOCKET_URL.replace(/\/$/, '');
+                            
+                            // If fileUrl is a full URL, extract the path part
+                            if (message.fileUrl && message.fileUrl.startsWith('http')) {
+                              const url = new URL(message.fileUrl);
+                              const path = url.pathname; // e.g., /uploads/filename-timestamp-hash.ext
+                              const fallbackUrl = `${baseUrl}${path}`;
+                              console.log('Trying fallback URL (from full URL):', fallbackUrl);
+                              (e.target as HTMLImageElement).src = fallbackUrl;
+                            } else if (message.fileUrl && message.fileUrl.startsWith('/uploads/')) {
+                              // If fileUrl is a path, use it directly
+                              const fallbackUrl = `${baseUrl}${message.fileUrl}`;
+                              console.log('Trying fallback URL (from path):', fallbackUrl);
+                              (e.target as HTMLImageElement).src = fallbackUrl;
+                            } else if (message.fileUrl) {
+                              // If fileUrl is just a filename
+                              const fallbackUrl = `${baseUrl}/uploads/${message.fileUrl}`;
+                              console.log('Trying fallback URL (from filename):', fallbackUrl);
+                              (e.target as HTMLImageElement).src = fallbackUrl;
+                            } else if (message.fileName) {
+                              // Last resort: use fileName
+                              const fallbackUrl = `${baseUrl}/uploads/${message.fileName}`;
+                              console.log('Trying fallback URL (from fileName):', fallbackUrl);
+                              (e.target as HTMLImageElement).src = fallbackUrl;
+                            } else {
+                              console.error('Cannot construct fallback URL - missing fileUrl and fileName');
+                            }
+                          }}
+                        />
+                        {message.fileName && (
+                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.8 }}>
+                            {message.fileName}
+                            {message.fileSize && ` (${formatFileSize(message.fileSize)})`}
+                          </Typography>
+                        )}
+                      </Box>
+                      );
+                    })()}
+                    
+                    {message.type === 'file' && message.fileUrl && (
+                      <Box sx={{ mt: 1, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')}
+                          sx={{ color: isOwnMessage(message) ? 'white' : 'primary.main' }}
+                        >
+                          {getFileIcon(message.type)}
+                        </IconButton>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Link
+                            href={getFileUrl(message.fileUrl, message.fileName)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file');
+                            }}
+                            sx={{
+                              color: isOwnMessage(message) ? 'white' : 'primary.main',
+                              textDecoration: 'none',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            {message.fileName || 'File'}
+                          </Link>
+                          {message.fileSize && (
+                            <Typography variant="caption" sx={{ display: 'block', opacity: 0.8 }}>
+                              {formatFileSize(message.fileSize)}
+                            </Typography>
+                          )}
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')}
+                          sx={{ color: isOwnMessage(message) ? 'white' : 'primary.main' }}
+                        >
+                          <Download fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
+                    
                     {message.reactions && message.reactions.length > 0 && (
                       <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
                         {Object.entries(
@@ -367,7 +688,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
                     )}
                   </Paper>
                   <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-                    {isOwnMessage(message) && (
+                    {(isOwnMessage(message) || canDeleteMessage(message)) && (
                       <IconButton
                         size="small"
                         onClick={(e) => handleMessageMenu(e, message)}
@@ -417,20 +738,50 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
             </IconButton>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              fullWidth
-              size="small"
-              value={newMessage}
-              onChange={handleTyping}
-              onKeyPress={handleKeyPress}
-              placeholder={`Message #${channelName}`}
-              multiline
-              maxRows={4}
-            />
-            <IconButton onClick={handleSendMessage} color="primary" disabled={!newMessage.trim()}>
-              <Send />
-            </IconButton>
+          <Box>
+            {uploading && (
+              <Box sx={{ mb: 1 }}>
+                <LinearProgress variant="determinate" value={uploadProgress} />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Uploading... {uploadProgress}%
+                </Typography>
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+              />
+              <IconButton onClick={handleAttachClick} color="primary" disabled={uploading}>
+                <AttachFile />
+              </IconButton>
+              <TextField
+                fullWidth
+                size="small"
+                value={newMessage}
+                onChange={handleTyping}
+                onKeyPress={handleKeyPress}
+                placeholder={`Message #${channelName}`}
+                multiline
+                maxRows={4}
+                disabled={uploading}
+              />
+              <IconButton 
+                onClick={handleSendMessage} 
+                color="primary" 
+                disabled={!newMessage.trim() || uploading}
+              >
+                <Send />
+              </IconButton>
+            </Box>
+            {selectedFile && !uploading && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+              </Typography>
+            )}
           </Box>
         )}
       </Box>
@@ -441,16 +792,20 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName })
         open={Boolean(messageMenuAnchor)}
         onClose={handleMenuClose}
       >
-        {selectedMessage && isOwnMessage(selectedMessage) && (
+        {selectedMessage && (
           <>
-            <MenuItem onClick={handleEditMessage}>
-              <Edit fontSize="small" sx={{ mr: 1 }} />
-              <ListItemText>Edit</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={handleDeleteMessage}>
-              <Delete fontSize="small" sx={{ mr: 1 }} />
-              <ListItemText>Delete</ListItemText>
-            </MenuItem>
+            {isOwnMessage(selectedMessage) && (
+              <MenuItem onClick={handleEditMessage}>
+                <Edit fontSize="small" sx={{ mr: 1 }} />
+                <ListItemText>Edit</ListItemText>
+              </MenuItem>
+            )}
+            {(isOwnMessage(selectedMessage) || canDeleteMessage(selectedMessage)) && (
+              <MenuItem onClick={handleDeleteMessage}>
+                <Delete fontSize="small" sx={{ mr: 1 }} />
+                <ListItemText>Delete</ListItemText>
+              </MenuItem>
+            )}
           </>
         )}
       </Menu>

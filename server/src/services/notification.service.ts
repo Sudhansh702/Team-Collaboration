@@ -21,6 +21,26 @@ export class NotificationService {
     await notification.save();
     await notification.populate('userId', 'username email');
 
+    // Emit Socket.io event for real-time notification
+    try {
+      const { io } = await import('../index');
+      const notificationObj = notification.toObject ? notification.toObject() : notification;
+      // Convert _id to string
+      if (notificationObj._id) {
+        notificationObj._id = (notificationObj._id as any).toString();
+      }
+      if (notificationObj.userId && typeof notificationObj.userId === 'object' && (notificationObj.userId as any)._id) {
+        notificationObj.userId = (notificationObj.userId as any)._id.toString();
+      }
+      if (notificationObj.relatedId) {
+        notificationObj.relatedId = (notificationObj.relatedId as any).toString();
+      }
+      io.to(`notifications:${userId}`).emit('new-notification', notificationObj);
+    } catch (error) {
+      // Socket.io might not be initialized yet, that's okay
+      console.log('Could not emit notification event (Socket.io not ready):', error);
+    }
+
     return notification;
   }
 
@@ -44,6 +64,24 @@ export class NotificationService {
 
     notification.read = true;
     await notification.save();
+
+    // Emit Socket.io event for real-time update
+    try {
+      const { io } = await import('../index');
+      const notificationObj = notification.toObject ? notification.toObject() : notification;
+      if (notificationObj._id) {
+        notificationObj._id = (notificationObj._id as any).toString();
+      }
+      if (notificationObj.userId && typeof notificationObj.userId === 'object' && (notificationObj.userId as any)._id) {
+        notificationObj.userId = (notificationObj.userId as any)._id.toString();
+      }
+      if (notificationObj.relatedId) {
+        notificationObj.relatedId = (notificationObj.relatedId as any).toString();
+      }
+      io.to(`notifications:${userId}`).emit('notification-updated', notificationObj);
+    } catch (error) {
+      console.log('Could not emit notification update event:', error);
+    }
 
     return notification;
   }

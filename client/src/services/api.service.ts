@@ -59,12 +59,27 @@ class ApiService {
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return this.api(originalRequest);
-          } catch (refreshError) {
-            // Refresh failed, clear tokens and redirect to login
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
+          } catch (refreshError: any) {
+            // Refresh failed - only clear if refresh token is truly invalid
+            // Don't clear if it's a network error or other temporary issue
+            console.error('Token refresh failed:', refreshError);
+            
+            // Check if it's a token expiration issue vs network error
+            if (refreshError?.response?.status === 401 || refreshError?.response?.status === 403) {
+              console.log('Refresh token expired or invalid - clearing auth');
+              // Only clear tokens if refresh token is truly expired/invalid
+              // Clear tokens first, then user data
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              // Only clear user if we're definitely logging out (refresh token expired)
+              // This is the ONLY place where user data should be cleared (besides logout)
+              localStorage.removeItem('user');
+              window.location.href = '/login';
+            } else {
+              console.log('Token refresh failed but might be temporary - keeping auth data');
+              // Don't clear tokens on network errors - user can retry
+              // Don't clear user data - preserve it for recovery
+            }
             return Promise.reject(refreshError);
           }
         }

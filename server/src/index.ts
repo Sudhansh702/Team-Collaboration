@@ -11,6 +11,8 @@ import messageRoutes from './routes/message.routes';
 import taskRoutes from './routes/task.routes';
 import meetingRoutes from './routes/meeting.routes';
 import notificationRoutes from './routes/notification.routes';
+import fileRoutes from './routes/file.routes';
+import searchRoutes from './routes/search.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -32,6 +34,20 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+// IMPORTANT: This must be before authentication middleware to allow public access
+const uploadDir = process.env.UPLOAD_DIR || './uploads';
+const path = require('path');
+const absoluteUploadDir = path.resolve(uploadDir);
+console.log('Serving static files from:', absoluteUploadDir);
+app.use('/uploads', express.static(absoluteUploadDir, {
+  setHeaders: (res, path) => {
+    // Set CORS headers for images
+    res.set('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
+    res.set('Access-Control-Allow-Credentials', 'true');
+  }
+}));
+
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teamconnect')
   .then(() => console.log('Connected to MongoDB'))
@@ -45,6 +61,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/search', searchRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -65,6 +83,18 @@ io.on('connection', (socket) => {
   socket.on('leave-channel', (channelId: string) => {
     socket.leave(`channel:${channelId}`);
     console.log(`User ${socket.id} left channel: ${channelId}`);
+  });
+
+  // Join notifications room
+  socket.on('join-notifications', (userId: string) => {
+    socket.join(`notifications:${userId}`);
+    console.log(`User ${socket.id} joined notifications room for user: ${userId}`);
+  });
+
+  // Leave notifications room
+  socket.on('leave-notifications', (userId: string) => {
+    socket.leave(`notifications:${userId}`);
+    console.log(`User ${socket.id} left notifications room for user: ${userId}`);
   });
 
   // Send message (broadcast to channel)
@@ -94,8 +124,15 @@ io.on('connection', (socket) => {
         data.replyTo
       );
 
+      // Convert to plain object to ensure all fields (including _id) are serialized
+      const messageObj = message.toObject ? message.toObject() : message;
+      // Ensure senderId._id is string if it's populated
+      if (messageObj.senderId && typeof messageObj.senderId === 'object' && messageObj.senderId._id) {
+        messageObj.senderId._id = messageObj.senderId._id.toString();
+      }
+
       // Broadcast message to all users in the channel
-      io.to(`channel:${data.channelId}`).emit('new-message', message);
+      io.to(`channel:${data.channelId}`).emit('new-message', messageObj);
     } catch (error: any) {
       socket.emit('message-error', { error: error.message });
     }
@@ -122,7 +159,12 @@ io.on('connection', (socket) => {
     try {
       const { MessageService } = await import('./services/message.service');
       const message = await MessageService.addReaction(data.messageId, data.userId, data.emoji);
-      io.to(`channel:${data.channelId}`).emit('message-updated', message);
+      // Convert to plain object to ensure all fields are serialized
+      const messageObj = message.toObject ? message.toObject() : message;
+      if (messageObj.senderId && typeof messageObj.senderId === 'object' && messageObj.senderId._id) {
+        messageObj.senderId._id = messageObj.senderId._id.toString();
+      }
+      io.to(`channel:${data.channelId}`).emit('message-updated', messageObj);
     } catch (error: any) {
       socket.emit('message-error', { error: error.message });
     }
@@ -132,7 +174,12 @@ io.on('connection', (socket) => {
     try {
       const { MessageService } = await import('./services/message.service');
       const message = await MessageService.removeReaction(data.messageId, data.userId, data.emoji);
-      io.to(`channel:${data.channelId}`).emit('message-updated', message);
+      // Convert to plain object to ensure all fields are serialized
+      const messageObj = message.toObject ? message.toObject() : message;
+      if (messageObj.senderId && typeof messageObj.senderId === 'object' && messageObj.senderId._id) {
+        messageObj.senderId._id = messageObj.senderId._id.toString();
+      }
+      io.to(`channel:${data.channelId}`).emit('message-updated', messageObj);
     } catch (error: any) {
       socket.emit('message-error', { error: error.message });
     }
@@ -143,7 +190,12 @@ io.on('connection', (socket) => {
     try {
       const { MessageService } = await import('./services/message.service');
       const message = await MessageService.updateMessage(data.messageId, data.userId, data.content);
-      io.to(`channel:${data.channelId}`).emit('message-updated', message);
+      // Convert to plain object to ensure all fields are serialized
+      const messageObj = message.toObject ? message.toObject() : message;
+      if (messageObj.senderId && typeof messageObj.senderId === 'object' && messageObj.senderId._id) {
+        messageObj.senderId._id = messageObj.senderId._id.toString();
+      }
+      io.to(`channel:${data.channelId}`).emit('message-updated', messageObj);
     } catch (error: any) {
       socket.emit('message-error', { error: error.message });
     }
@@ -168,12 +220,12 @@ io.on('connection', (socket) => {
 // Error handling middleware
 app.use(errorHandler);
 
+// Export io for use in controllers
+export { io };
+
 const PORT = process.env.PORT || 5000;
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-// Export io for use in other modules
-export { io };
 

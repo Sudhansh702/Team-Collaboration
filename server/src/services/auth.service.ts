@@ -23,7 +23,8 @@ export class AuthService {
 
   static generateAccessToken(payload: ITokenPayload): string {
     const secret = process.env.JWT_SECRET || 'default-secret';
-    const expiresIn = (process.env.JWT_EXPIRE || '15m') as StringValue;
+    // Increased to 24 hours for better user experience (can be configured via env)
+    const expiresIn = (process.env.JWT_EXPIRE || '24h') as StringValue;
     const options: SignOptions = {
       expiresIn
     };
@@ -32,7 +33,8 @@ export class AuthService {
 
   static generateRefreshToken(payload: ITokenPayload): string {
     const secret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret';
-    const expiresIn = (process.env.JWT_REFRESH_EXPIRE || '7d') as StringValue;
+    // Increased to 30 days for better user experience (can be configured via env)
+    const expiresIn = (process.env.JWT_REFRESH_EXPIRE || '30d') as StringValue;
     const options: SignOptions = {
       expiresIn
     };
