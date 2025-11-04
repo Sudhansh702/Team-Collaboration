@@ -55,13 +55,13 @@ export class MeetingService {
     for (const participantId of participants) {
       if (participantId !== organizerId) {
         try {
-          await NotificationService.createNotification(
-            participantId,
-            'meeting',
-            'Meeting Scheduled',
-            `${organizerName} scheduled a meeting: "${title}"`,
-            meeting._id.toString()
-          );
+            await NotificationService.createNotification(
+              participantId,
+              'meeting',
+              'Meeting Scheduled',
+              `${organizerName} scheduled a meeting: "${title}"`,
+              (meeting._id as any).toString()
+            );
         } catch (error) {
           console.error(`Failed to create meeting notification for ${participantId}:`, error);
         }

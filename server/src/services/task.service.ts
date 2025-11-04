@@ -67,7 +67,7 @@ export class TaskService {
               'task',
               'New Task Assigned',
               `${creatorName} assigned you a task: "${title}"`,
-              task._id.toString()
+              (task._id as any).toString()
             );
           } catch (error) {
             console.error(`Failed to create notification for user ${assigneeId}:`, error);
@@ -202,7 +202,7 @@ export class TaskService {
             'task',
             'Task Status Updated',
             `${userName} updated task "${task.title}" to ${newStatus.replace('-', ' ')}`,
-            task._id.toString()
+            (task._id as any).toString()
           );
         } catch (error) {
           console.error('Failed to create notification for task creator:', error);
@@ -219,7 +219,7 @@ export class TaskService {
               'task',
               'Task Status Updated',
               `${userName} updated task "${task.title}" to ${newStatus.replace('-', ' ')}`,
-              task._id.toString()
+              (task._id as any).toString()
             );
           } catch (error) {
             console.error(`Failed to create notification for assignee ${assigneeIdStr}:`, error);
@@ -237,7 +237,7 @@ export class TaskService {
               'task',
               'Task Completed',
               `Task "${task.title}" has been completed`,
-              task._id.toString()
+              (task._id as any).toString()
             );
           } catch (error) {
             console.error('Failed to create completion notification:', error);
@@ -261,7 +261,7 @@ export class TaskService {
               'task',
               'Task Assigned',
               `${userName} assigned you a task: "${task.title}"`,
-              task._id.toString()
+              (task._id as any).toString()
             );
           } catch (error) {
             console.error(`Failed to create notification for new assignee ${assigneeId}:`, error);

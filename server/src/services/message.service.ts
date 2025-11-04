@@ -87,9 +87,9 @@ export class MessageService {
         
         // Find user by username
         const mentionedUser = await User.findOne({ username });
-        if (mentionedUser && mentionedUser._id.toString() !== senderId) {
+        if (mentionedUser && (mentionedUser._id as any).toString() !== senderId) {
           // Check if user is a team member
-          const mentionedUserId = mentionedUser._id.toString();
+          const mentionedUserId = (mentionedUser._id as any).toString();
           if (teamMembers.includes(mentionedUserId)) {
             try {
               await NotificationService.createNotification(
@@ -97,7 +97,7 @@ export class MessageService {
                 'mention',
                 'You were mentioned',
                 `${senderName} mentioned you in ${channel.name}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
-                message._id.toString()
+                (message._id as any).toString()
               );
             } catch (error) {
               console.error(`Failed to create mention notification for ${mentionedUserId}:`, error);

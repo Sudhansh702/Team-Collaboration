@@ -15,6 +15,19 @@ import fileRoutes from './routes/file.routes';
 import searchRoutes from './routes/search.routes';
 import { errorHandler } from './middleware/errorHandler';
 
+// WebRTC type definitions for Node.js
+interface RTCSessionDescriptionInit {
+  type: 'offer' | 'answer' | 'pranswer' | 'rollback';
+  sdp?: string;
+}
+
+interface RTCIceCandidateInit {
+  candidate?: string;
+  sdpMLineIndex?: number | null;
+  sdpMid?: string | null;
+  usernameFragment?: string | null;
+}
+
 dotenv.config();
 
 const app = express();
@@ -371,7 +384,7 @@ app.use(errorHandler);
 // Export io for use in controllers
 export { io };
 
-const PORT = process.env.PORT || 5555;
+const PORT = parseInt(process.env.PORT || '5555', 10);
 const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces for network access
 
 httpServer.listen(PORT, HOST, () => {
