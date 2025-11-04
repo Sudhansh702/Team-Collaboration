@@ -231,7 +231,7 @@ Frontend will run on `http://localhost:3000`
 - `call-end` / `call-ended` - Call ending
 - `offer` / `answer` / `ice-candidate` - WebRTC signaling
 
-## Phase 6 Status: 🚧 In Progress
+## Phase 6 Status: ✅ Complete
 
 ### Implemented Features
 - ✅ Task Management UI (create, edit, delete tasks)
@@ -240,11 +240,15 @@ Frontend will run on `http://localhost:3000`
 - ✅ Task integration in workspace with tabs
 - ✅ Task assignment to team members
 - ✅ Task status and priority management
+- ✅ Automatic notification generation for tasks
+- ✅ Automatic notification generation for team events
+- ✅ @mention detection in messages
+- ✅ Automatic notification generation for meetings
+- ✅ Real-time notifications via Socket.io
 
-### Features to Implement
-- ⏳ Automatic notification generation for tasks
+### Optional Enhancements (Future)
 - ⏳ Enhanced analytics with charts
-- ⏳ UI/UX improvements (dark mode, mentions, etc.)
+- ⏳ UI/UX improvements (dark mode, etc.)
 
 ### API Endpoints Available
 
