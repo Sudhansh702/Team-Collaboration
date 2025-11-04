@@ -21,14 +21,63 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST']
+    origin: (origin, callback) => {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      // Allow localhost and local network IPs
+      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+      const isLocalNetwork = /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) || 
+                             /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin) ||
+                             /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/.test(origin);
+      
+      if (isLocalhost || isLocalNetwork) {
+        callback(null, true);
+      } else {
+        const allowedOrigins = process.env.CLIENT_URL 
+          ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+          : ['http://localhost:3000', 'http://localhost:3003'];
+        const isAllowed = allowedOrigins.some(allowed => origin === allowed || allowed === '*');
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
 // Middleware
+const allowedOrigins = process.env.CLIENT_URL 
+  ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+  : ['http://localhost:3000', 'http://localhost:3003'];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and local network IPs
+    const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const isLocalNetwork = /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) || 
+                           /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin) ||
+                           /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/.test(origin);
+    
+    // Check if origin matches any allowed origin (case-insensitive)
+    const isAllowed = allowedOrigins.some(allowed => {
+      return origin === allowed || origin.includes('localhost:300') || allowed === '*';
+    });
+    
+    if (isAllowed || allowedOrigins.includes('*') || isLocalhost || isLocalNetwork) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin, 'Allowed origins:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -41,9 +90,14 @@ const path = require('path');
 const absoluteUploadDir = path.resolve(uploadDir);
 console.log('Serving static files from:', absoluteUploadDir);
 app.use('/uploads', express.static(absoluteUploadDir, {
-  setHeaders: (res, path) => {
-    // Set CORS headers for images
-    res.set('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
+  setHeaders: (res, path, stat) => {
+    // Set CORS headers for images - allow both ports
+    const origin = res.req?.headers?.origin;
+    if (origin && (origin.includes('localhost:3000') || origin.includes('localhost:3003'))) {
+      res.set('Access-Control-Allow-Origin', origin);
+    } else {
+      res.set('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
+    }
     res.set('Access-Control-Allow-Credentials', 'true');
   }
 }));
@@ -317,9 +371,13 @@ app.use(errorHandler);
 // Export io for use in controllers
 export { io };
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5555;
+const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces for network access
 
-httpServer.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  if (HOST === '0.0.0.0') {
+    console.log(`Server is accessible from network at http://192.168.1.4:${PORT}`);
+  }
 });
 

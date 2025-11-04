@@ -22,14 +22,23 @@ class CallService {
   private localStream: MediaStream | null = null;
   private callHandlers: Map<string, Function> = new Map();
   private currentUserId: string | null = null;
+  private hasPermission: boolean = false;
 
   initializeSocket(socketUrl: string) {
-    if (this.socket) {
+    if (this.socket && this.socket.connected) {
       return this.socket;
     }
 
+    // Disconnect existing socket if any
+    if (this.socket) {
+      this.socket.disconnect();
+    }
+
     this.socket = io(socketUrl, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
     });
 
     // Setup event listeners
@@ -100,11 +109,34 @@ class CallService {
     }
 
     try {
-      // Get user media
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: callType === 'video'
-      });
+      // Check if we can reuse existing stream (only if same call type and tracks are active)
+      if (!this.canReuseStream(callType)) {
+        // Stop existing stream if any
+        if (this.localStream) {
+          this.localStream.getTracks().forEach(track => track.stop());
+          this.localStream = null;
+        }
+
+        // Get user media with constraints
+        const constraints: MediaStreamConstraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: callType === 'video' ? {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          } : false
+        };
+
+        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        this.hasPermission = true;
+        console.log('Got new media stream, permission granted');
+      } else {
+        console.log('Reusing existing stream for call');
+      }
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection({
@@ -123,10 +155,18 @@ class CallService {
 
       // Setup remote stream handler BEFORE creating offer
       this.peerConnection.ontrack = (event) => {
+        console.log('Received remote track:', event);
         if (event.streams && event.streams[0]) {
           const handler = this.callHandlers.get('remote-stream');
           if (handler) {
             handler(event.streams[0]);
+          }
+        } else if (event.track) {
+          // Fallback: create stream from track
+          const stream = new MediaStream([event.track]);
+          const handler = this.callHandlers.get('remote-stream');
+          if (handler) {
+            handler(stream);
           }
         }
       };
@@ -145,15 +185,19 @@ class CallService {
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
 
-      // Emit call initiation
+      // Emit call initiation first
       this.socket.emit('call-initiate', { from, to, callType, teamId });
 
-      // Send offer
-      this.socket.emit('offer', {
-        from,
-        to,
-        offer: offer
-      });
+      // Send offer after a small delay to ensure the recipient is ready
+      setTimeout(() => {
+        if (this.socket && this.peerConnection) {
+          this.socket.emit('offer', {
+            from,
+            to,
+            offer: offer
+          });
+        }
+      }, 100);
     } catch (error: any) {
       console.error('Error initiating call:', error);
       
@@ -180,11 +224,34 @@ class CallService {
     }
 
     try {
-      // Get user media
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: callType === 'video'
-      });
+      // Check if we can reuse existing stream (only if same call type and tracks are active)
+      if (!this.canReuseStream(callType)) {
+        // Stop existing stream if any
+        if (this.localStream) {
+          this.localStream.getTracks().forEach(track => track.stop());
+          this.localStream = null;
+        }
+
+        // Get user media with constraints
+        const constraints: MediaStreamConstraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: callType === 'video' ? {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          } : false
+        };
+
+        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        this.hasPermission = true;
+        console.log('Got new media stream, permission granted');
+      } else {
+        console.log('Reusing existing stream for call');
+      }
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection({
@@ -196,10 +263,18 @@ class CallService {
 
       // Setup remote stream handler BEFORE creating answer
       this.peerConnection.ontrack = (event) => {
+        console.log('Received remote track (answer):', event);
         if (event.streams && event.streams[0]) {
           const handler = this.callHandlers.get('remote-stream');
           if (handler) {
             handler(event.streams[0]);
+          }
+        } else if (event.track) {
+          // Fallback: create stream from track
+          const stream = new MediaStream([event.track]);
+          const handler = this.callHandlers.get('remote-stream');
+          if (handler) {
+            handler(stream);
           }
         }
       };
@@ -226,7 +301,17 @@ class CallService {
       const pendingOffer = this.callHandlers.get('pending-offer') as RTCSessionDescriptionInit | undefined;
       const offerToUse = offer || pendingOffer;
 
-      if (offerToUse) {
+      if (!offerToUse) {
+        // Wait a bit for the offer to arrive
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const delayedOffer = this.callHandlers.get('pending-offer') as RTCSessionDescriptionInit | undefined;
+        if (delayedOffer) {
+          await this.peerConnection.setRemoteDescription(new RTCSessionDescription(delayedOffer));
+          this.callHandlers.delete('pending-offer');
+        } else {
+          throw new Error('Offer not received. Cannot answer call.');
+        }
+      } else {
         // Set remote description (the offer from the caller)
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerToUse));
         // Clear pending offer
@@ -237,13 +322,14 @@ class CallService {
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
-      // Send answer
+      // Send answer via call-answer event
       this.socket.emit('call-answer', {
         from,
         to,
         answer: answer
       });
 
+      // Also send via answer event for WebRTC signaling
       this.socket.emit('answer', {
         from,
         to,
@@ -251,6 +337,9 @@ class CallService {
       });
     } catch (error: any) {
       console.error('Error answering call:', error);
+      
+      // Cleanup on error
+      this.cleanup();
       
       // Provide more specific error messages
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -270,36 +359,33 @@ class CallService {
   }
 
   private async handleOffer(data: CallOffer) {
-    // If we don't have a peer connection yet, we need to create one
-    // This happens when answering an incoming call
-    if (!this.peerConnection) {
-      // Store the offer for when we answer
-      this.callHandlers.set('pending-offer', data.offer);
-      return;
-    }
+    // Always store the offer first (for incoming calls)
+    this.callHandlers.set('pending-offer', data.offer);
+    
+    // If we have a peer connection already, handle the offer immediately
+    if (this.peerConnection && this.localStream) {
+      try {
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+        
+        // Create answer
+        const answer = await this.peerConnection.createAnswer();
+        await this.peerConnection.setLocalDescription(answer);
 
-    // If we have a peer connection, handle the offer immediately
-    if (!this.localStream) {
-      return;
-    }
-
-    try {
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-      
-      // Create answer
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
-
-      if (this.socket && this.currentUserId) {
-        this.socket.emit('answer', {
-          from: this.currentUserId,
-          to: data.from,
-          answer: answer
-        });
+        if (this.socket && this.currentUserId) {
+          this.socket.emit('answer', {
+            from: this.currentUserId,
+            to: data.from,
+            answer: answer
+          });
+        }
+        
+        // Clear pending offer since we handled it
+        this.callHandlers.delete('pending-offer');
+      } catch (error) {
+        console.error('Error handling offer:', error);
       }
-    } catch (error) {
-      console.error('Error handling offer:', error);
     }
+    // If no peer connection, the offer is stored and will be used when answerCall is called
   }
 
   private async handleAnswer(data: CallAnswer) {
@@ -343,8 +429,13 @@ class CallService {
     // If peer connection already exists, set up handler
     if (this.peerConnection) {
       this.peerConnection.ontrack = (event) => {
+        console.log('Remote track in handler:', event);
         if (event.streams && event.streams[0]) {
           handler(event.streams[0]);
+        } else if (event.track) {
+          // Fallback: create stream from track
+          const stream = new MediaStream([event.track]);
+          handler(stream);
         }
       };
     }
@@ -374,7 +465,10 @@ class CallService {
 
   cleanup() {
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach(track => {
+        track.stop();
+        track.enabled = false;
+      });
       this.localStream = null;
     }
 
@@ -382,6 +476,9 @@ class CallService {
       this.peerConnection.close();
       this.peerConnection = null;
     }
+    
+    // Clear pending offer
+    this.callHandlers.delete('pending-offer');
   }
 
   disconnect() {
@@ -389,6 +486,24 @@ class CallService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+    }
+    this.hasPermission = false;
+  }
+
+  // Check if we can reuse existing stream (for same call type)
+  canReuseStream(callType: 'audio' | 'video'): boolean {
+    if (!this.localStream) return false;
+    
+    const hasVideo = this.localStream.getVideoTracks().length > 0;
+    const hasAudio = this.localStream.getAudioTracks().length > 0;
+    
+    // Check if all tracks are active
+    const allTracksActive = this.localStream.getTracks().every(track => track.readyState === 'live');
+    
+    if (callType === 'video') {
+      return hasVideo && hasAudio && allTracksActive;
+    } else {
+      return hasAudio && allTracksActive;
     }
   }
 }

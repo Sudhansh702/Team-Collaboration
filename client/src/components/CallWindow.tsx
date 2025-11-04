@@ -52,7 +52,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
   useEffect(() => {
     if (!open || !user) return;
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5555';
     const socket = callService.initializeSocket(socketUrl);
     
     // Join user room
@@ -65,22 +65,47 @@ const CallWindow: React.FC<CallWindowProps> = ({
 
     // Setup remote stream handler BEFORE starting call
     callService.setRemoteStreamHandler((stream: MediaStream) => {
-      setRemoteStream(stream);
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = stream;
+      console.log('Remote stream received:', stream, 'Active tracks:', stream.getTracks().filter(t => t.readyState === 'live'));
+      
+      // Only update if stream has active tracks
+      if (stream.getTracks().length > 0) {
+        setRemoteStream(stream);
+        setCallStatus('in-call');
+        setError(null);
+        
+        // Force update video element
+        setTimeout(() => {
+          if (remoteVideoRef.current && stream) {
+            remoteVideoRef.current.srcObject = stream;
+            remoteVideoRef.current.play()
+              .then(() => console.log('Remote video playing'))
+              .catch(err => {
+                console.error('Error playing remote video:', err);
+                // Retry after delay
+                setTimeout(() => {
+                  if (remoteVideoRef.current && stream) {
+                    remoteVideoRef.current.play().catch(console.error);
+                  }
+                }, 1000);
+              });
+          }
+        }, 100);
       }
     });
 
-    // Start call
-    if (isIncoming) {
-      // Answer incoming call
-      handleAnswerCall();
-    } else {
-      // Initiate call
-      handleInitiateCall();
-    }
+    // Start call after a short delay to ensure socket is ready
+    const startCallTimer = setTimeout(() => {
+      if (isIncoming) {
+        // Answer incoming call
+        handleAnswerCall();
+      } else {
+        // Initiate call
+        handleInitiateCall();
+      }
+    }, 100);
 
     return () => {
+      clearTimeout(startCallTimer);
       callService.off('call-answered');
       callService.off('call-rejected');
       callService.off('call-ended');
@@ -93,13 +118,39 @@ const CallWindow: React.FC<CallWindowProps> = ({
     const localStream = callService.getLocalStream();
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(err => {
+        console.error('Error playing local video:', err);
+      });
     }
+  }, [open, callStatus]);
 
-    // Update remote video stream
+  useEffect(() => {
+    // Update remote video stream when it changes
     if (remoteStream && remoteVideoRef.current) {
+      console.log('Setting remote stream to video element:', remoteStream);
       remoteVideoRef.current.srcObject = remoteStream;
+      // Ensure video plays
+      const playPromise = remoteVideoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Remote video playing successfully');
+          })
+          .catch(err => {
+            console.error('Error playing remote video:', err);
+            // Try again after a short delay
+            setTimeout(() => {
+              if (remoteVideoRef.current && remoteStream) {
+                remoteVideoRef.current.play().catch(console.error);
+              }
+            }, 500);
+          });
+      }
+    } else if (remoteVideoRef.current && callType === 'video') {
+      // Clear if no stream
+      remoteVideoRef.current.srcObject = null;
     }
-  }, [remoteStream]);
+  }, [remoteStream, callType]);
 
   const handleInitiateCall = async () => {
     try {
@@ -123,21 +174,25 @@ const CallWindow: React.FC<CallWindowProps> = ({
       setError(null);
       setCallStatus('connecting');
       await callService.answerCall(
-        user!._id!,
-        otherUserId,
+        otherUserId, // from (caller)
+        user!._id!,  // to (us)
         callType
       );
-      setCallStatus('in-call');
+      // Don't set status to 'in-call' here - wait for remote stream
     } catch (error: any) {
       console.error('Error answering call:', error);
       const errorMessage = error.message || 'Failed to answer call. Please check your camera/microphone permissions.';
       setError(errorMessage);
       setCallStatus('ended');
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     }
   };
 
   const handleCallAnswered = () => {
     setCallStatus('in-call');
+    setError(null);
   };
 
   const handleCallRejected = () => {
@@ -217,12 +272,34 @@ const CallWindow: React.FC<CallWindowProps> = ({
               ref={remoteVideoRef}
               autoPlay
               playsInline
+              muted={false}
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover'
+                objectFit: 'cover',
+                backgroundColor: 'black'
+              }}
+              onLoadedMetadata={() => {
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.play().catch(console.error);
+                }
               }}
             />
+          )}
+          
+          {/* Placeholder when no remote stream */}
+          {callType === 'video' && !remoteStream && callStatus === 'in-call' && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                color: 'white'
+              }}
+            >
+              <Typography>Waiting for video...</Typography>
+            </Box>
           )}
 
           {/* Local Video Preview (for video calls) */}
@@ -249,6 +326,11 @@ const CallWindow: React.FC<CallWindowProps> = ({
                   height: '100%',
                   objectFit: 'cover',
                   transform: 'scaleX(-1)' // Mirror effect
+                }}
+                onLoadedMetadata={() => {
+                  if (localVideoRef.current) {
+                    localVideoRef.current.play().catch(console.error);
+                  }
                 }}
               />
             </Box>
