@@ -13,18 +13,14 @@ import {
   Box,
   Typography,
   Chip,
-  Autocomplete,
   Alert
 } from '@mui/material';
 import {
   Task as TaskIcon,
-  CalendarToday,
-  Person,
   Flag
 } from '@mui/icons-material';
 import taskService from '../services/task.service';
-import { Task, Team, User } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { Task, Team } from '../types';
 
 interface TaskModalProps {
   open: boolean;
@@ -43,7 +39,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
   task,
   onSuccess
 }) => {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({

@@ -18,8 +18,7 @@ import {
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  Task as TaskIcon,
-  FilterList as FilterIcon
+  Task as TaskIcon
 } from '@mui/icons-material';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
@@ -200,7 +199,7 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
         )}
 
         {/* Tabs */}
-        <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 2 }}>
+        <Tabs value={selectedTab} onChange={(_e, newValue) => setSelectedTab(newValue)} sx={{ mb: 2 }}>
           <Tab label="All Tasks" />
           <Tab label="My Tasks" />
         </Tabs>

@@ -21,8 +21,8 @@ class CallService {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private callHandlers: Map<string, Function> = new Map();
+  private pendingOffer: RTCSessionDescriptionInit | null = null;
   private currentUserId: string | null = null;
-  private hasPermission: boolean = false;
 
   initializeSocket(socketUrl: string) {
     if (this.socket && this.socket.connected) {
@@ -132,7 +132,6 @@ class CallService {
         };
 
         this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        this.hasPermission = true;
         console.log('Got new media stream, permission granted');
       } else {
         console.log('Reusing existing stream for call');
@@ -147,11 +146,13 @@ class CallService {
       });
 
       // Add local tracks to peer connection
-      this.localStream.getTracks().forEach(track => {
-        if (this.peerConnection) {
-          this.peerConnection.addTrack(track, this.localStream!);
-        }
-      });
+      if (this.localStream) {
+        this.localStream.getTracks().forEach(track => {
+          if (this.peerConnection) {
+            this.peerConnection.addTrack(track, this.localStream!);
+          }
+        });
+      }
 
       // Setup remote stream handler BEFORE creating offer
       this.peerConnection.ontrack = (event) => {
@@ -247,7 +248,6 @@ class CallService {
         };
 
         this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        this.hasPermission = true;
         console.log('Got new media stream, permission granted');
       } else {
         console.log('Reusing existing stream for call');
@@ -280,11 +280,13 @@ class CallService {
       };
 
       // Add local tracks to peer connection
-      this.localStream.getTracks().forEach(track => {
-        if (this.peerConnection) {
-          this.peerConnection.addTrack(track, this.localStream!);
-        }
-      });
+      if (this.localStream) {
+        this.localStream.getTracks().forEach(track => {
+          if (this.peerConnection) {
+            this.peerConnection.addTrack(track, this.localStream!);
+          }
+        });
+      }
 
       // Handle ICE candidates
       this.peerConnection.onicecandidate = (event) => {
@@ -298,16 +300,14 @@ class CallService {
       };
 
       // Check for pending offer or use provided offer
-      const pendingOffer = this.callHandlers.get('pending-offer') as RTCSessionDescriptionInit | undefined;
-      const offerToUse = offer || pendingOffer;
+      const offerToUse = offer || this.pendingOffer;
 
       if (!offerToUse) {
         // Wait a bit for the offer to arrive
         await new Promise((resolve) => setTimeout(resolve, 500));
-        const delayedOffer = this.callHandlers.get('pending-offer') as RTCSessionDescriptionInit | undefined;
-        if (delayedOffer) {
-          await this.peerConnection.setRemoteDescription(new RTCSessionDescription(delayedOffer));
-          this.callHandlers.delete('pending-offer');
+        if (this.pendingOffer) {
+          await this.peerConnection.setRemoteDescription(new RTCSessionDescription(this.pendingOffer));
+          this.pendingOffer = null;
         } else {
           throw new Error('Offer not received. Cannot answer call.');
         }
@@ -315,7 +315,7 @@ class CallService {
         // Set remote description (the offer from the caller)
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerToUse));
         // Clear pending offer
-        this.callHandlers.delete('pending-offer');
+        this.pendingOffer = null;
       }
 
       // Create and send answer
@@ -360,7 +360,7 @@ class CallService {
 
   private async handleOffer(data: CallOffer) {
     // Always store the offer first (for incoming calls)
-    this.callHandlers.set('pending-offer', data.offer);
+    this.pendingOffer = data.offer;
     
     // If we have a peer connection already, handle the offer immediately
     if (this.peerConnection && this.localStream) {
@@ -380,7 +380,7 @@ class CallService {
         }
         
         // Clear pending offer since we handled it
-        this.callHandlers.delete('pending-offer');
+        this.pendingOffer = null;
       } catch (error) {
         console.error('Error handling offer:', error);
       }
@@ -478,7 +478,7 @@ class CallService {
     }
     
     // Clear pending offer
-    this.callHandlers.delete('pending-offer');
+    this.pendingOffer = null;
   }
 
   disconnect() {
@@ -487,7 +487,6 @@ class CallService {
       this.socket.disconnect();
       this.socket = null;
     }
-    this.hasPermission = false;
   }
 
   // Check if we can reuse existing stream (for same call type)

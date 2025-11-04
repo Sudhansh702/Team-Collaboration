@@ -35,7 +35,6 @@ import {
   PersonAdd,
   Search as SearchIcon,
   Videocam,
-  Phone,
   Task as TaskIcon
 } from '@mui/icons-material';
 import channelService from '../services/channel.service';
@@ -87,7 +86,7 @@ const WorkspacePage = () => {
     if (!user || !user._id) return;
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5555';
-    const socket = callService.initializeSocket(socketUrl);
+    callService.initializeSocket(socketUrl);
     
     // Join user room for call signaling
     callService.joinUserRoom(user._id);
@@ -490,7 +489,7 @@ const WorkspacePage = () => {
               {/* Tabs for Messages and Tasks */}
               <Tabs
                 value={workspaceTab}
-                onChange={(e, newValue) => setWorkspaceTab(newValue)}
+                onChange={(_e, newValue) => setWorkspaceTab(newValue)}
                 sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
               >
                 <Tab

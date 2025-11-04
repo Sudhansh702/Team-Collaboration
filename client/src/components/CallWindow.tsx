@@ -5,9 +5,7 @@ import {
   Box,
   IconButton,
   Typography,
-  Paper,
   Avatar,
-  Button,
   Chip,
   Alert
 } from '@mui/material';
@@ -16,9 +14,7 @@ import {
   Mic,
   MicOff,
   Videocam,
-  VideocamOff,
-  VolumeUp,
-  VolumeOff
+  VideocamOff
 } from '@mui/icons-material';
 import callService from '../services/call.service';
 import { useAuth } from '../context/AuthContext';
@@ -53,7 +49,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
     if (!open || !user) return;
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5555';
-    const socket = callService.initializeSocket(socketUrl);
+    callService.initializeSocket(socketUrl);
     
     // Join user room
     callService.joinUserRoom(user._id!);
