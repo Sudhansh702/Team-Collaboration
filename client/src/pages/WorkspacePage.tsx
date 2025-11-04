@@ -23,7 +23,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   Settings,
@@ -33,7 +35,8 @@ import {
   PersonAdd,
   Search as SearchIcon,
   Videocam,
-  Phone
+  Phone,
+  Task as TaskIcon
 } from '@mui/icons-material';
 import channelService from '../services/channel.service';
 import teamService from '../services/team.service';
@@ -44,6 +47,7 @@ import SearchBar from '../components/SearchBar';
 import NotificationCenter from '../components/NotificationCenter';
 import CallWindow from '../components/CallWindow';
 import IncomingCallModal from '../components/IncomingCallModal';
+import TaskList from '../components/TaskList';
 import callService from '../services/call.service';
 
 const DRAWER_WIDTH = 240;
@@ -66,6 +70,7 @@ const WorkspacePage = () => {
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [workspaceTab, setWorkspaceTab] = useState<'messages' | 'tasks'>('messages');
   
   // Call state
   const [incomingCall, setIncomingCall] = useState<{ from: string; callType: 'audio' | 'video'; callerName?: string } | null>(null);
@@ -481,11 +486,41 @@ const WorkspacePage = () => {
           )}
 
           {selectedChannel ? (
-            <MessagesPanel
-              channelId={selectedChannel._id}
-              channelName={selectedChannel.name}
-              team={team}
-            />
+            <Box>
+              {/* Tabs for Messages and Tasks */}
+              <Tabs
+                value={workspaceTab}
+                onChange={(e, newValue) => setWorkspaceTab(newValue)}
+                sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+              >
+                <Tab
+                  icon={<Message />}
+                  iconPosition="start"
+                  label="Messages"
+                  value="messages"
+                />
+                <Tab
+                  icon={<TaskIcon />}
+                  iconPosition="start"
+                  label="Tasks"
+                  value="tasks"
+                />
+              </Tabs>
+
+              {/* Content based on selected tab */}
+              {workspaceTab === 'messages' ? (
+                <MessagesPanel
+                  channelId={selectedChannel._id}
+                  channelName={selectedChannel.name}
+                  team={team}
+                />
+              ) : (
+                <TaskList
+                  team={team}
+                  channelId={selectedChannel._id}
+                />
+              )}
+            </Box>
           ) : (
             <Paper sx={{ p: 3, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
