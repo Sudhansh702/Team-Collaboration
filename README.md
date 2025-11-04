@@ -214,13 +214,22 @@ Frontend will run on `http://localhost:3000`
 #### Search (`/api/search`)
 - `GET /api/search?q=query&type=all&teamId=...&channelId=...` - Search messages, channels, teams
 
-## Phase 5 Status: 🚧 In Progress
+## Phase 5 Status: ✅ Complete
 
-### Features to Implement
-- ⏳ Voice/video calls using WebRTC
-- ⏳ Call signaling via Socket.io
-- ⏳ Call UI components
-- ⏳ Call integration with workspace
+### Implemented Features
+- ✅ Voice/video calls using WebRTC
+- ✅ Call signaling via Socket.io
+- ✅ Call UI components (CallWindow, IncomingCallModal)
+- ✅ Call integration with workspace
+- ✅ Call controls (mute, video toggle, hang up)
+- ✅ Real-time call management
+
+### Socket.io Call Events
+- `call-initiate` / `incoming-call` - Call initiation
+- `call-answer` / `call-answered` - Call answering
+- `call-reject` / `call-rejected` - Call rejection
+- `call-end` / `call-ended` - Call ending
+- `offer` / `answer` / `ice-candidate` - WebRTC signaling
 
 ## Development
 
