@@ -1,6 +1,8 @@
 import Task, { ITask } from '../models/Task.model';
 import Team from '../models/Team.model';
 import Channel from '../models/Channel.model';
+import { NotificationService } from './notification.service';
+import User from '../models/User.model';
 
 export class TaskService {
   static async createTask(
@@ -51,6 +53,28 @@ export class TaskService {
     await task.populate('assignedTo', 'username email avatar');
     await task.populate('teamId', 'name');
     await task.populate('channelId', 'name');
+
+    // Create notifications for assigned users
+    if (assignedTo.length > 0) {
+      const createdByUser = await User.findById(userId);
+      const creatorName = createdByUser?.username || 'Someone';
+      
+      for (const assigneeId of assignedTo) {
+        if (assigneeId !== userId) { // Don't notify the creator
+          try {
+            await NotificationService.createNotification(
+              assigneeId,
+              'task',
+              'New Task Assigned',
+              `${creatorName} assigned you a task: "${title}"`,
+              task._id.toString()
+            );
+          } catch (error) {
+            console.error(`Failed to create notification for user ${assigneeId}:`, error);
+          }
+        }
+      }
+    }
 
     return task;
   }
@@ -152,11 +176,99 @@ export class TaskService {
     }
     if (updateData.dueDate !== undefined) task.dueDate = updateData.dueDate;
 
+    // Get old task state before updates
+    const oldStatus = task.status;
+    const oldAssignedTo = task.assignedTo.map(id => id.toString());
+    
     await task.save();
     await task.populate('createdBy', 'username email avatar');
     await task.populate('assignedTo', 'username email avatar');
     await task.populate('teamId', 'name');
     await task.populate('channelId', 'name');
+
+    // Get current user for notifications
+    const currentUser = await User.findById(userId);
+    const userName = currentUser?.username || 'Someone';
+
+    // Notify about status changes
+    if (updateData.status !== undefined && updateData.status !== oldStatus) {
+      const newStatus = updateData.status;
+      
+      // Notify task creator (if not the one making the change)
+      if (task.createdBy.toString() !== userId) {
+        try {
+          await NotificationService.createNotification(
+            task.createdBy.toString(),
+            'task',
+            'Task Status Updated',
+            `${userName} updated task "${task.title}" to ${newStatus.replace('-', ' ')}`,
+            task._id.toString()
+          );
+        } catch (error) {
+          console.error('Failed to create notification for task creator:', error);
+        }
+      }
+
+      // Notify assigned users (if not the one making the change)
+      for (const assigneeId of task.assignedTo) {
+        const assigneeIdStr = assigneeId.toString();
+        if (assigneeIdStr !== userId && assigneeIdStr !== task.createdBy.toString()) {
+          try {
+            await NotificationService.createNotification(
+              assigneeIdStr,
+              'task',
+              'Task Status Updated',
+              `${userName} updated task "${task.title}" to ${newStatus.replace('-', ' ')}`,
+              task._id.toString()
+            );
+          } catch (error) {
+            console.error(`Failed to create notification for assignee ${assigneeIdStr}:`, error);
+          }
+        }
+      }
+
+      // Special notification for completion
+      if (newStatus === 'completed') {
+        // Notify creator
+        if (task.createdBy.toString() !== userId) {
+          try {
+            await NotificationService.createNotification(
+              task.createdBy.toString(),
+              'task',
+              'Task Completed',
+              `Task "${task.title}" has been completed`,
+              task._id.toString()
+            );
+          } catch (error) {
+            console.error('Failed to create completion notification:', error);
+          }
+        }
+      }
+    }
+
+    // Notify about assignment changes
+    if (updateData.assignedTo !== undefined) {
+      const newAssignedTo = updateData.assignedTo.map(id => id.toString());
+      const newlyAssigned = newAssignedTo.filter(id => !oldAssignedTo.includes(id));
+      const removed = oldAssignedTo.filter(id => !newAssignedTo.includes(id));
+
+      // Notify newly assigned users
+      for (const assigneeId of newlyAssigned) {
+        if (assigneeId !== userId) {
+          try {
+            await NotificationService.createNotification(
+              assigneeId,
+              'task',
+              'Task Assigned',
+              `${userName} assigned you a task: "${task.title}"`,
+              task._id.toString()
+            );
+          } catch (error) {
+            console.error(`Failed to create notification for new assignee ${assigneeId}:`, error);
+          }
+        }
+      }
+    }
 
     return task;
   }

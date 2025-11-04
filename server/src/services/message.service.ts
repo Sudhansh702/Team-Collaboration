@@ -1,6 +1,8 @@
 import Message, { IMessage } from '../models/Message.model';
 import Channel from '../models/Channel.model';
 import Team from '../models/Team.model';
+import { NotificationService } from './notification.service';
+import User from '../models/User.model';
 
 export class MessageService {
   static async createMessage(

@@ -1,5 +1,6 @@
 import Team, { ITeam } from '../models/Team.model';
 import User from '../models/User.model';
+import { NotificationService } from './notification.service';
 
 export class TeamService {
   static async createTeam(
@@ -210,6 +211,23 @@ export class TeamService {
     await team.save();
     await team.populate('ownerId', 'username email avatar');
     await team.populate('members.userId', 'username email avatar');
+    
+    // Create notification for the newly added member
+    const addedByUser = await User.findById(userId);
+    const addedByName = addedByUser?.username || 'Someone';
+    
+    try {
+      await NotificationService.createNotification(
+        userToAddId,
+        'team_invite',
+        'Added to Team',
+        `${addedByName} added you to the team "${team.name}"`,
+        teamId
+      );
+    } catch (error) {
+      console.error(`Failed to create notification for new team member ${userToAddId}:`, error);
+    }
+    
     return team;
   }
 
