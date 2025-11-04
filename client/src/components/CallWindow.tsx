@@ -61,7 +61,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
     callService.on('call-rejected', handleCallRejected);
     callService.on('call-ended', handleCallEnded);
 
-    // Setup remote stream handler
+    // Setup remote stream handler BEFORE starting call
     callService.setRemoteStreamHandler((stream: MediaStream) => {
       setRemoteStream(stream);
       if (remoteVideoRef.current) {

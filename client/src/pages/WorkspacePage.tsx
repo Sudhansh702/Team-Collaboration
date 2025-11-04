@@ -31,7 +31,9 @@ import {
   Message,
   Lock,
   PersonAdd,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Videocam,
+  Phone
 } from '@mui/icons-material';
 import channelService from '../services/channel.service';
 import teamService from '../services/team.service';
@@ -86,32 +88,40 @@ const WorkspacePage = () => {
     callService.joinUserRoom(user._id);
 
     // Listen for incoming calls
-    callService.on('incoming-call', (data: { from: string; callType: 'audio' | 'video'; teamId?: string }) => {
+    const incomingCallHandler = (data: { from: string; callType: 'audio' | 'video'; teamId?: string }) => {
       // TODO: Fetch caller name from API
       setIncomingCall({
         from: data.from,
         callType: data.callType,
         callerName: 'User' // Will be replaced with actual name
       });
-    });
+    };
 
     // Listen for call answered
-    callService.on('call-answered', () => {
-      if (callWindow) {
-        setCallWindow({ ...callWindow, open: true });
-      }
-    });
+    const callAnsweredHandler = () => {
+      setCallWindow((prev) => {
+        if (prev) {
+          return { ...prev, open: true };
+        }
+        return prev;
+      });
+    };
 
     // Listen for call rejected/ended
-    callService.on('call-rejected', () => {
+    const callRejectedHandler = () => {
       setIncomingCall(null);
       setCallWindow(null);
-    });
+    };
 
-    callService.on('call-ended', () => {
+    const callEndedHandler = () => {
       setIncomingCall(null);
       setCallWindow(null);
-    });
+    };
+
+    callService.on('incoming-call', incomingCallHandler);
+    callService.on('call-answered', callAnsweredHandler);
+    callService.on('call-rejected', callRejectedHandler);
+    callService.on('call-ended', callEndedHandler);
 
     return () => {
       callService.leaveUserRoom(user._id!);
@@ -120,7 +130,7 @@ const WorkspacePage = () => {
       callService.off('call-rejected');
       callService.off('call-ended');
     };
-  }, [user, callWindow]);
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -386,6 +396,44 @@ const WorkspacePage = () => {
               <SearchIcon />
             </IconButton>
             <NotificationCenter />
+            {/* Test Call Button - Shows first team member */}
+            {team && team.members.length > 1 && (
+              <IconButton
+                color="primary"
+                onClick={() => {
+                  // Find first team member that's not the current user
+                  const otherMember = team.members.find((m) => {
+                    const memberId = typeof m.userId === 'object' && m.userId && '_id' in m.userId 
+                      ? (m.userId as any)._id.toString() 
+                      : m.userId.toString();
+                    return memberId !== user?._id?.toString();
+                  });
+                  
+                  if (otherMember && user) {
+                    const otherUserId = typeof otherMember.userId === 'object' && otherMember.userId && '_id' in otherMember.userId 
+                      ? (otherMember.userId as any)._id.toString() 
+                      : otherMember.userId.toString();
+                    
+                    const otherUserName = typeof otherMember.userId === 'object' && otherMember.userId && 'username' in otherMember.userId
+                      ? (otherMember.userId as any).username
+                      : 'User';
+                    
+                    // Open call window
+                    setCallWindow({
+                      open: true,
+                      otherUserId: otherUserId,
+                      otherUserName: otherUserName,
+                      callType: 'video',
+                      isIncoming: false
+                    });
+                  }
+                }}
+                sx={{ mr: 1 }}
+                title="Test Video Call"
+              >
+                <Videocam />
+              </IconButton>
+            )}
             {selectedChannel && selectedChannel.type === 'private' && (isOwner() || isAdmin()) && (
               <Button
                 variant="outlined"

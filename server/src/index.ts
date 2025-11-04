@@ -262,31 +262,34 @@ io.on('connection', (socket) => {
 
   // WebRTC signaling
   socket.on('offer', (data: { 
+    from: string;
     to: string; 
     offer: RTCSessionDescriptionInit;
   }) => {
     socket.to(`user:${data.to}`).emit('offer', {
-      from: socket.id,
+      from: data.from,
       offer: data.offer
     });
   });
 
   socket.on('answer', (data: { 
+    from: string;
     to: string; 
     answer: RTCSessionDescriptionInit;
   }) => {
     socket.to(`user:${data.to}`).emit('answer', {
-      from: socket.id,
+      from: data.from,
       answer: data.answer
     });
   });
 
   socket.on('ice-candidate', (data: { 
+    from: string;
     to: string; 
     candidate: RTCIceCandidateInit;
   }) => {
     socket.to(`user:${data.to}`).emit('ice-candidate', {
-      from: socket.id,
+      from: data.from,
       candidate: data.candidate
     });
   });

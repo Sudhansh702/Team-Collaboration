@@ -21,6 +21,7 @@ class CallService {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private callHandlers: Map<string, Function> = new Map();
+  private currentUserId: string | null = null;
 
   initializeSocket(socketUrl: string) {
     if (this.socket) {
@@ -66,6 +67,7 @@ class CallService {
   }
 
   joinUserRoom(userId: string) {
+    this.currentUserId = userId;
     if (this.socket) {
       this.socket.emit('join-user-room', userId);
     }
@@ -119,6 +121,16 @@ class CallService {
         }
       });
 
+      // Setup remote stream handler BEFORE creating offer
+      this.peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          const handler = this.callHandlers.get('remote-stream');
+          if (handler) {
+            handler(event.streams[0]);
+          }
+        }
+      };
+
       // Handle ICE candidates
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate && this.socket) {
@@ -138,6 +150,7 @@ class CallService {
 
       // Send offer
       this.socket.emit('offer', {
+        from,
         to,
         offer: offer
       });
@@ -147,7 +160,7 @@ class CallService {
     }
   }
 
-  async answerCall(from: string, to: string, callType: 'audio' | 'video') {
+  async answerCall(from: string, to: string, callType: 'audio' | 'video', offer?: RTCSessionDescriptionInit) {
     if (!this.socket) {
       throw new Error('Socket not initialized');
     }
@@ -167,6 +180,16 @@ class CallService {
         ]
       });
 
+      // Setup remote stream handler BEFORE creating answer
+      this.peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          const handler = this.callHandlers.get('remote-stream');
+          if (handler) {
+            handler(event.streams[0]);
+          }
+        }
+      };
+
       // Add local tracks to peer connection
       this.localStream.getTracks().forEach(track => {
         if (this.peerConnection) {
@@ -178,11 +201,23 @@ class CallService {
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate && this.socket) {
           this.socket.emit('ice-candidate', {
+            from,
             to,
             candidate: event.candidate
           });
         }
       };
+
+      // Check for pending offer or use provided offer
+      const pendingOffer = this.callHandlers.get('pending-offer') as RTCSessionDescriptionInit | undefined;
+      const offerToUse = offer || pendingOffer;
+
+      if (offerToUse) {
+        // Set remote description (the offer from the caller)
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerToUse));
+        // Clear pending offer
+        this.callHandlers.delete('pending-offer');
+      }
 
       // Create and send answer
       const answer = await this.peerConnection.createAnswer();
@@ -196,6 +231,7 @@ class CallService {
       });
 
       this.socket.emit('answer', {
+        from,
         to,
         answer: answer
       });
@@ -206,7 +242,16 @@ class CallService {
   }
 
   private async handleOffer(data: CallOffer) {
-    if (!this.peerConnection || !this.localStream) {
+    // If we don't have a peer connection yet, we need to create one
+    // This happens when answering an incoming call
+    if (!this.peerConnection) {
+      // Store the offer for when we answer
+      this.callHandlers.set('pending-offer', data.offer);
+      return;
+    }
+
+    // If we have a peer connection, handle the offer immediately
+    if (!this.localStream) {
       return;
     }
 
@@ -217,8 +262,9 @@ class CallService {
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
-      if (this.socket) {
+      if (this.socket && this.currentUserId) {
         this.socket.emit('answer', {
+          from: this.currentUserId,
           to: data.from,
           answer: answer
         });
@@ -263,9 +309,15 @@ class CallService {
   }
 
   setRemoteStreamHandler(handler: (stream: MediaStream) => void) {
+    // Store handler for later use
+    this.callHandlers.set('remote-stream', handler);
+    
+    // If peer connection already exists, set up handler
     if (this.peerConnection) {
       this.peerConnection.ontrack = (event) => {
-        handler(event.streams[0]);
+        if (event.streams && event.streams[0]) {
+          handler(event.streams[0]);
+        }
       };
     }
   }
