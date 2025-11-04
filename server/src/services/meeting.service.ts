@@ -1,5 +1,7 @@
 import Meeting, { IMeeting } from '../models/Meeting.model';
 import Team from '../models/Team.model';
+import { NotificationService } from './notification.service';
+import User from '../models/User.model';
 
 export class MeetingService {
   static async createMeeting(

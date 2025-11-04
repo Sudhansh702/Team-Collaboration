@@ -70,6 +70,43 @@ export class MessageService {
     await message.populate('senderId', 'username email avatar _id');
     await message.populate('replyTo', 'content senderId');
 
+    // Detect mentions (@username) and create notifications
+    const mentionRegex = /@(\w+)/g;
+    const mentions = content.match(mentionRegex);
+    
+    if (mentions && mentions.length > 0) {
+      // Get all team members
+      const teamMembers = [...team.members.map(m => m.userId.toString()), ownerIdStr];
+      
+      // Get sender user for notification
+      const senderUser = await User.findById(senderId);
+      const senderName = senderUser?.username || 'Someone';
+      
+      for (const mention of mentions) {
+        const username = mention.substring(1); // Remove @
+        
+        // Find user by username
+        const mentionedUser = await User.findOne({ username });
+        if (mentionedUser && mentionedUser._id.toString() !== senderId) {
+          // Check if user is a team member
+          const mentionedUserId = mentionedUser._id.toString();
+          if (teamMembers.includes(mentionedUserId)) {
+            try {
+              await NotificationService.createNotification(
+                mentionedUserId,
+                'mention',
+                'You were mentioned',
+                `${senderName} mentioned you in ${channel.name}: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+                message._id.toString()
+              );
+            } catch (error) {
+              console.error(`Failed to create mention notification for ${mentionedUserId}:`, error);
+            }
+          }
+        }
+      }
+    }
+
     return message;
   }
 
