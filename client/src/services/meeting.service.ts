@@ -65,6 +65,30 @@ class MeetingService {
       throw new Error(response.message || 'Failed to delete meeting');
     }
   }
+
+  async startMeeting(meetingId: string): Promise<Meeting> {
+    const response = await apiService.post<{ meeting: Meeting }>(`/meetings/${meetingId}/start`, {});
+    if (response.success && response.data) {
+      return response.data.meeting;
+    }
+    throw new Error(response.message || 'Failed to start meeting');
+  }
+
+  async joinMeeting(meetingId: string): Promise<Meeting> {
+    const response = await apiService.post<{ meeting: Meeting }>(`/meetings/${meetingId}/join`, {});
+    if (response.success && response.data) {
+      return response.data.meeting;
+    }
+    throw new Error(response.message || 'Failed to join meeting');
+  }
+
+  async leaveMeeting(meetingId: string): Promise<Meeting> {
+    const response = await apiService.post<{ meeting: Meeting }>(`/meetings/${meetingId}/leave`, {});
+    if (response.success && response.data) {
+      return response.data.meeting;
+    }
+    throw new Error(response.message || 'Failed to leave meeting');
+  }
 }
 
 export default new MeetingService();

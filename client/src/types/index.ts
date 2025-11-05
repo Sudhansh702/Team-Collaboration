@@ -89,6 +89,16 @@ export interface Meeting {
   updatedAt: string;
 }
 
+export interface MeetingParticipant {
+  userId: string;
+  userName: string;
+  avatar?: string;
+  isMuted: boolean;
+  isVideoOff: boolean;
+  stream?: MediaStream;
+  connectionState?: RTCPeerConnectionState;
+}
+
 export interface Notification {
   _id: string;
   userId: string;

@@ -68,7 +68,7 @@
 |-----------------------------|--------------------------------------------------------------------------|---------------|----------|------------------|
 | ~~Caller Name Display~~     | ~~WorkspacePage.tsx:97 - Shows "User" instead of name~~                  | ✅ **FIXED**  | ---      | ---              |
 | ~~Task Display Issue~~      | ~~TaskList.tsx - Tasks created but not showing~~                         | ✅ **FIXED**  | ---      | ---              |
-| No Critical Broken Features | All core features functional                                             | ---           | ---      | ---              |
+| Remote Video Not Displaying | CallWindow.tsx, call.service.ts - Remote video tracks received but not visible | ⚠️ **KNOWN ISSUE** | High | Users can't see each other in video calls |
 
 ---
 
@@ -77,7 +77,7 @@
 | Feature Name                        | Status         | Priority   | Description                                                                    | Dependencies                  | Estimated Effort    |
 |------------------------------------- |---------------|------------|--------------------------------------------------------------------------------|-------------------------------|---------------------|
 | Enhanced Analytics with Charts       | Not implemented| High      | Add charts (pie, line) for task & message stats, activity heatmaps             | Chart.js / Recharts           | Medium              |
-| Dark Mode Toggle                     | Not implemented| High      | UI theme toggle for dark/light mode                                            | MUI Theme                     | Low-Medium          |
+| ~~Dark Mode Toggle~~                 | ✅ **IMPLEMENTED**| ---      | ~~UI theme toggle for dark/light mode~~                                        | ~~MUI Theme~~                 | ---                 |
 | Mobile Responsiveness Improvements   | Partial        | High      | Better mobile UI/UX                                                            |                               | Medium              |
 | Message Pagination/Lazy Loading      | Not implemented| High      | Load messages in chunks                                                        | Backend pagination             | Medium              |
 | Unread Message Indicators            | Not implemented| High      | Show unread per channel                                                        | Backend tracking               | Medium              |

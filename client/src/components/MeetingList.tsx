@@ -218,7 +218,25 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
   };
 
   const handleStartMeeting = async (meeting: Meeting) => {
-    await handleStatusChange(meeting._id, 'in-progress');
+    try {
+      setError('');
+      await meetingService.startMeeting(meeting._id);
+      await loadMeetings();
+      // Navigate to meeting page
+      window.location.href = `/meeting/${meeting._id}`;
+    } catch (err: any) {
+      setError(err.message || 'Failed to start meeting');
+    }
+  };
+
+  const handleJoinMeeting = async (meeting: Meeting) => {
+    try {
+      setError('');
+      // Navigate to meeting page (it will handle joining)
+      window.location.href = `/meeting/${meeting._id}`;
+    } catch (err: any) {
+      setError(err.message || 'Failed to join meeting');
+    }
   };
 
   const handleCompleteMeeting = async (meeting: Meeting) => {
@@ -462,7 +480,17 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
                       </Box>
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                         {/* Status Action Buttons */}
-                        {canStartMeeting(meeting) && (
+                        {meeting.status === 'in-progress' && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            onClick={() => handleJoinMeeting(meeting)}
+                          >
+                            Join Meeting
+                          </Button>
+                        )}
+                        {canStartMeeting(meeting) && meeting.status !== 'in-progress' && (
                           <Button
                             size="small"
                             variant="contained"
@@ -472,7 +500,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
                             Start Meeting
                           </Button>
                         )}
-                        {canCompleteMeeting(meeting) && (
+                        {canCompleteMeeting(meeting) && meeting.status !== 'in-progress' && (
                           <Button
                             size="small"
                             variant="outlined"

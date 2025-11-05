@@ -540,8 +540,8 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                     elevation={0}
                     sx={{
                       p: 1.5,
-                      bgcolor: isOwnMessage(message) ? 'primary.light' : 'grey.100',
-                      color: isOwnMessage(message) ? 'white' : 'text.primary',
+                      bgcolor: isOwnMessage(message) ? 'primary.main' : (theme) => theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
+                      color: isOwnMessage(message) ? 'primary.contrastText' : 'text.primary',
                       borderRadius: 2
                     }}
                   >
@@ -628,7 +628,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                         <IconButton
                           size="small"
                           onClick={() => handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')}
-                          sx={{ color: isOwnMessage(message) ? 'white' : 'primary.main' }}
+                          sx={{ color: isOwnMessage(message) ? 'primary.contrastText' : 'primary.main' }}
                         >
                           {getFileIcon(message.type)}
                         </IconButton>
@@ -640,7 +640,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                               handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file');
                             }}
                             sx={{
-                              color: isOwnMessage(message) ? 'white' : 'primary.main',
+                              color: isOwnMessage(message) ? 'primary.contrastText' : 'primary.main',
                               textDecoration: 'none',
                               '&:hover': { textDecoration: 'underline' }
                             }}
@@ -656,7 +656,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                         <IconButton
                           size="small"
                           onClick={() => handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')}
-                          sx={{ color: isOwnMessage(message) ? 'white' : 'primary.main' }}
+                          sx={{ color: isOwnMessage(message) ? 'primary.contrastText' : 'primary.main' }}
                         >
                           <Download fontSize="small" />
                         </IconButton>

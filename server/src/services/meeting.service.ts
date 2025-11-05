@@ -185,5 +185,101 @@ export class MeetingService {
 
     await Meeting.findByIdAndDelete(meetingId);
   }
+
+  static async startMeeting(meetingId: string, userId: string): Promise<IMeeting> {
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    // Check if user is organizer or team member
+    const isOrganizer = meeting.organizerId.toString() === userId;
+    const team = await Team.findById(meeting.teamId);
+    if (!team) {
+      throw new Error('Team not found');
+    }
+    const isOwner = team.ownerId.toString() === userId;
+    const isMember = team.members.some((m) => m.userId.toString() === userId);
+
+    if (!isOrganizer && !isOwner && !isMember) {
+      throw new Error('You are not a member of this team');
+    }
+
+    // Validate participant count (max 10)
+    const participantCount = meeting.participants.length;
+    if (participantCount > 10) {
+      throw new Error('Meeting cannot have more than 10 participants');
+    }
+
+    // Update meeting status to in-progress
+    meeting.status = 'in-progress';
+    await meeting.save();
+    await meeting.populate('organizerId', 'username email avatar');
+    await meeting.populate('participants', 'username email avatar');
+    await meeting.populate('teamId', 'name');
+
+    return meeting;
+  }
+
+  static async joinMeeting(meetingId: string, userId: string): Promise<IMeeting> {
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    // Check if user is participant or team member
+    const isParticipant = meeting.participants.some((p) => p.toString() === userId);
+    const team = await Team.findById(meeting.teamId);
+    if (!team) {
+      throw new Error('Team not found');
+    }
+    const isOwner = team.ownerId.toString() === userId;
+    const isMember = team.members.some((m) => m.userId.toString() === userId);
+
+    if (!isParticipant && !isOwner && !isMember) {
+      throw new Error('You are not authorized to join this meeting');
+    }
+
+    // Check if meeting is active
+    if (meeting.status !== 'in-progress') {
+      throw new Error('Meeting is not active. Only active meetings can be joined.');
+    }
+
+    await meeting.populate('organizerId', 'username email avatar');
+    await meeting.populate('participants', 'username email avatar');
+    await meeting.populate('teamId', 'name');
+
+    return meeting;
+  }
+
+  static async leaveMeeting(meetingId: string, userId: string): Promise<IMeeting> {
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    // If organizer leaves, end the meeting
+    if (meeting.organizerId.toString() === userId && meeting.status === 'in-progress') {
+      meeting.status = 'completed';
+      await meeting.save();
+    }
+
+    await meeting.populate('organizerId', 'username email avatar');
+    await meeting.populate('participants', 'username email avatar');
+    await meeting.populate('teamId', 'name');
+
+    return meeting;
+  }
+
+  static async getActiveParticipants(meetingId: string): Promise<string[]> {
+    // This will be populated by Socket.io events
+    // For now, return the meeting participants list
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    return meeting.participants.map((p) => p.toString());
+  }
 }
 

@@ -227,3 +227,108 @@ export const deleteMeeting = async (req: AuthRequest, res: Response, next: NextF
   }
 };
 
+export const startMeeting = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+    const meeting = await MeetingService.startMeeting(id, userId);
+
+    const transformedMeeting = transformMeeting(meeting);
+    
+    // Emit real-time event to team room
+    io.to(`team:${transformedMeeting.teamId}`).emit('meeting-updated', transformedMeeting);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Meeting started successfully',
+      data: { meeting: transformedMeeting }
+    });
+  } catch (error: any) {
+    if (
+      error.message === 'Meeting not found' ||
+      error.message === 'Team not found' ||
+      error.message === 'You are not a member of this team' ||
+      error.message === 'Meeting cannot have more than 10 participants'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+    next(error);
+  }
+};
+
+export const joinMeeting = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+    const meeting = await MeetingService.joinMeeting(id, userId);
+
+    const transformedMeeting = transformMeeting(meeting);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Joined meeting successfully',
+      data: { meeting: transformedMeeting }
+    });
+  } catch (error: any) {
+    if (
+      error.message === 'Meeting not found' ||
+      error.message === 'Team not found' ||
+      error.message === 'You are not authorized to join this meeting' ||
+      error.message === 'Meeting is not active. Only active meetings can be joined.'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+    next(error);
+  }
+};
+
+export const leaveMeeting = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+    const meeting = await MeetingService.leaveMeeting(id, userId);
+
+    const transformedMeeting = transformMeeting(meeting);
+    
+    // Emit real-time event to team room if meeting was completed
+    if (transformedMeeting.status === 'completed') {
+      io.to(`team:${transformedMeeting.teamId}`).emit('meeting-updated', transformedMeeting);
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Left meeting successfully',
+      data: { meeting: transformedMeeting }
+    });
+  } catch (error: any) {
+    if (
+      error.message === 'Meeting not found' ||
+      error.message === 'Team not found'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+    next(error);
+  }
+};
+

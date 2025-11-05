@@ -219,15 +219,20 @@ const NotificationCenter: React.FC = () => {
     <>
       <Tooltip title="Notifications">
         <IconButton
-          color="inherit"
           onClick={handleClick}
           aria-label="notifications"
           aria-controls={open ? 'notification-menu' : undefined}
           aria-haspopup="true"
           aria-expanded={open ? 'true' : undefined}
+          sx={{
+            color: 'text.primary',
+            '&:hover': {
+              backgroundColor: 'action.hover',
+            },
+          }}
         >
           <Badge badgeContent={unreadCount} color="error">
-            <NotificationsIcon />
+            <NotificationsIcon sx={{ color: 'text.primary' }} />
           </Badge>
         </IconButton>
       </Tooltip>

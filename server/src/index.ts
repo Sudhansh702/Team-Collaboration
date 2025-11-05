@@ -132,6 +132,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// Meeting room management - store participants in memory (outside socket handler)
+const meetingParticipants = new Map<string, Set<string>>();
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -381,8 +384,131 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} left user room: ${userId}`);
   });
 
+  // Join meeting room
+  socket.on('join-meeting-room', (data: { meetingId: string; userId: string }) => {
+    const { meetingId, userId } = data;
+    const roomName = `meeting:${meetingId}`;
+    
+    socket.join(roomName);
+    
+    // Track participant
+    if (!meetingParticipants.has(meetingId)) {
+      meetingParticipants.set(meetingId, new Set());
+    }
+    meetingParticipants.get(meetingId)!.add(userId);
+    
+    console.log(`User ${userId} (socket ${socket.id}) joined meeting room: ${meetingId}`);
+    
+    // Get current participants list
+    const participants = Array.from(meetingParticipants.get(meetingId) || []);
+    
+    // Notify all participants in the room (including the new one)
+    io.to(roomName).emit('meeting-participant-joined', {
+      meetingId,
+      userId,
+      participants
+    });
+  });
+
+  // Leave meeting room
+  socket.on('leave-meeting-room', (data: { meetingId: string; userId: string }) => {
+    const { meetingId, userId } = data;
+    const roomName = `meeting:${meetingId}`;
+    
+    socket.leave(roomName);
+    
+    // Remove participant
+    const participants = meetingParticipants.get(meetingId);
+    if (participants) {
+      participants.delete(userId);
+      if (participants.size === 0) {
+        meetingParticipants.delete(meetingId);
+      }
+    }
+    
+    console.log(`User ${userId} (socket ${socket.id}) left meeting room: ${meetingId}`);
+    
+    // Get updated participants list
+    const updatedParticipants = Array.from(meetingParticipants.get(meetingId) || []);
+    
+    // Notify remaining participants
+    socket.to(roomName).emit('meeting-participant-left', {
+      meetingId,
+      userId,
+      participants: updatedParticipants
+    });
+  });
+
+  // WebRTC signaling for meetings
+  socket.on('meeting-offer', (data: {
+    meetingId: string;
+    from: string;
+    to: string;
+    offer: RTCSessionDescriptionInit;
+  }) => {
+    const { meetingId, from, to, offer } = data;
+    const roomName = `meeting:${meetingId}`;
+    
+    // Send offer to specific participant in the meeting room
+    socket.to(roomName).emit('meeting-offer', {
+      meetingId,
+      from,
+      to,
+      offer
+    });
+  });
+
+  socket.on('meeting-answer', (data: {
+    meetingId: string;
+    from: string;
+    to: string;
+    answer: RTCSessionDescriptionInit;
+  }) => {
+    const { meetingId, from, to, answer } = data;
+    const roomName = `meeting:${meetingId}`;
+    
+    // Send answer to specific participant in the meeting room
+    socket.to(roomName).emit('meeting-answer', {
+      meetingId,
+      from,
+      to,
+      answer
+    });
+  });
+
+  socket.on('meeting-ice-candidate', (data: {
+    meetingId: string;
+    from: string;
+    to: string;
+    candidate: RTCIceCandidateInit;
+  }) => {
+    const { meetingId, from, to, candidate } = data;
+    const roomName = `meeting:${meetingId}`;
+    
+    // Send ICE candidate to specific participant in the meeting room
+    socket.to(roomName).emit('meeting-ice-candidate', {
+      meetingId,
+      from,
+      to,
+      candidate
+    });
+  });
+
+  // Cleanup meeting participants on disconnect
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
+    
+    // Clean up meeting participants
+    meetingParticipants.forEach((participants, meetingId) => {
+      // We can't easily track which userId this socket was, so we'll let the client
+      // handle cleanup by emitting leave-meeting-room before disconnect
+      // But we can clean up if the room becomes empty
+      const roomName = `meeting:${meetingId}`;
+      const room = io.sockets.adapter.rooms.get(roomName);
+      if (!room || room.size === 0) {
+        meetingParticipants.delete(meetingId);
+      }
+    });
   });
 });
 

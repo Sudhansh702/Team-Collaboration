@@ -4,7 +4,10 @@ import {
   getTeamMeetings,
   getMeeting,
   updateMeeting,
-  deleteMeeting
+  deleteMeeting,
+  startMeeting,
+  joinMeeting,
+  leaveMeeting
 } from '../controllers/meeting.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -17,6 +20,9 @@ router.get('/team/:teamId', getTeamMeetings);
 router.get('/:id', getMeeting);
 router.put('/:id', updateMeeting);
 router.delete('/:id', deleteMeeting);
+router.post('/:id/start', startMeeting);
+router.post('/:id/join', joinMeeting);
+router.post('/:id/leave', leaveMeeting);
 
 export default router;
 

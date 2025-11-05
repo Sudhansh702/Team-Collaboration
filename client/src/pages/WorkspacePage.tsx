@@ -43,12 +43,9 @@ import { useAuth } from '../context/AuthContext';
 import MessagesPanel from '../components/MessagesPanel';
 import SearchBar from '../components/SearchBar';
 import NotificationCenter from '../components/NotificationCenter';
-import CallWindow from '../components/CallWindow';
-import IncomingCallModal from '../components/IncomingCallModal';
 import TaskList from '../components/TaskList';
 import MeetingList from '../components/MeetingList';
-import callService from '../services/call.service';
-import authService from '../services/auth.service';
+import ThemeToggle from '../components/ThemeToggle';
 
 const DRAWER_WIDTH = 240;
 
@@ -71,10 +68,6 @@ const WorkspacePage = () => {
   const [memberEmail, setMemberEmail] = useState('');
 
   const [workspaceTab, setWorkspaceTab] = useState<'messages' | 'tasks' | 'meetings'>('messages');
-  
-  // Call state
-  const [incomingCall, setIncomingCall] = useState<{ from: string; callType: 'audio' | 'video'; callerName?: string } | null>(null);
-  const [callWindow, setCallWindow] = useState<{ open: boolean; otherUserId: string; otherUserName: string; callType: 'audio' | 'video'; isIncoming: boolean } | null>(null);
 
   useEffect(() => {
     if (teamId) {
@@ -82,71 +75,6 @@ const WorkspacePage = () => {
     }
   }, [teamId]);
 
-  // Initialize call service and handle incoming calls
-  useEffect(() => {
-    if (!user || !user._id) return;
-
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
-    callService.initializeSocket(socketUrl);
-    
-    // Join user room for call signaling
-    callService.joinUserRoom(user._id);
-
-    // Listen for incoming calls
-    const incomingCallHandler = async (data: { from: string; callType: 'audio' | 'video'; teamId?: string }) => {
-      try {
-        // Fetch caller name from API
-        const callerUser = await authService.getUserById(data.from);
-        setIncomingCall({
-          from: data.from,
-          callType: data.callType,
-          callerName: callerUser.username || 'User'
-        });
-      } catch (error) {
-        console.error('Failed to fetch caller name:', error);
-        // Fallback to 'User' if API call fails
-        setIncomingCall({
-          from: data.from,
-          callType: data.callType,
-          callerName: 'User'
-        });
-      }
-    };
-
-    // Listen for call answered
-    const callAnsweredHandler = () => {
-      setCallWindow((prev) => {
-        if (prev) {
-          return { ...prev, open: true };
-        }
-        return prev;
-      });
-    };
-
-    // Listen for call rejected/ended
-    const callRejectedHandler = () => {
-      setIncomingCall(null);
-      setCallWindow(null);
-    };
-
-    const callEndedHandler = () => {
-      setIncomingCall(null);
-      setCallWindow(null);
-    };
-
-    callService.on('incoming-call', incomingCallHandler);
-    callService.on('call-answered', callAnsweredHandler);
-    callService.on('call-rejected', callRejectedHandler);
-    callService.on('call-ended', callEndedHandler);
-
-    return () => {
-      callService.leaveUserRoom(user._id!);
-      callService.off('incoming-call');
-      callService.off('call-answered');
-      callService.off('call-rejected');
-      callService.off('call-ended');
-    };
-  }, [user]);
 
   const loadData = async () => {
     try {
@@ -269,35 +197,6 @@ const WorkspacePage = () => {
     return member?.role === 'admin' || member?.role === 'owner';
   };
 
-  // Call handlers
-  const handleAnswerCall = () => {
-    if (!incomingCall || !user) return;
-    
-    setCallWindow({
-      open: true,
-      otherUserId: incomingCall.from,
-      otherUserName: incomingCall.callerName || 'User',
-      callType: incomingCall.callType,
-      isIncoming: true
-    });
-    
-    setIncomingCall(null);
-  };
-
-  const handleRejectCall = () => {
-    if (!incomingCall || !user) return;
-    
-    callService.rejectCall(incomingCall.from, user._id!);
-    setIncomingCall(null);
-  };
-
-  const handleCloseCallWindow = () => {
-    if (callWindow && user) {
-      callService.endCall(user._id!, callWindow.otherUserId);
-    }
-    setCallWindow(null);
-    callService.cleanup();
-  };
 
   if (loading) {
     return (
@@ -425,45 +324,9 @@ const WorkspacePage = () => {
                 }}
               />
             </Box>
+            <ThemeToggle />
             <NotificationCenter />
             {/* Test Call Button - Shows first team member */}
-            {team && team.members.length > 1 && (
-              <IconButton
-                color="primary"
-                onClick={() => {
-                  // Find first team member that's not the current user
-                  const otherMember = team.members.find((m) => {
-                    const memberId = typeof m.userId === 'object' && m.userId && '_id' in m.userId 
-                      ? (m.userId as any)._id.toString() 
-                      : m.userId.toString();
-                    return memberId !== user?._id?.toString();
-                  });
-                  
-                  if (otherMember && user) {
-                    const otherUserId = typeof otherMember.userId === 'object' && otherMember.userId && '_id' in otherMember.userId 
-                      ? (otherMember.userId as any)._id.toString() 
-                      : otherMember.userId.toString();
-                    
-                    const otherUserName = typeof otherMember.userId === 'object' && otherMember.userId && 'username' in otherMember.userId
-                      ? (otherMember.userId as any).username
-                      : 'User';
-                    
-                    // Open call window
-                    setCallWindow({
-                      open: true,
-                      otherUserId: otherUserId,
-                      otherUserName: otherUserName,
-                      callType: 'video',
-                      isIncoming: false
-                    });
-                  }
-                }}
-                sx={{ mr: 1 }}
-                title="Test Video Call"
-              >
-                <Videocam />
-              </IconButton>
-            )}
             {selectedChannel && selectedChannel.type === 'private' && (isOwner() || isAdmin()) && (
               <Button
                 variant="outlined"
@@ -617,28 +480,6 @@ const WorkspacePage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Incoming Call Modal */}
-      {incomingCall && (
-        <IncomingCallModal
-          open={!!incomingCall}
-          callerName={incomingCall.callerName || 'User'}
-          callType={incomingCall.callType}
-          onAnswer={handleAnswerCall}
-          onReject={handleRejectCall}
-        />
-      )}
-
-      {/* Call Window */}
-      {callWindow && (
-        <CallWindow
-          open={callWindow.open}
-          onClose={handleCloseCallWindow}
-          otherUserId={callWindow.otherUserId}
-          otherUserName={callWindow.otherUserName}
-          callType={callWindow.callType}
-          isIncoming={callWindow.isIncoming}
-        />
-      )}
     </Box>
   );
 };

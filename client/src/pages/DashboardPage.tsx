@@ -1,7 +1,8 @@
-import { Container, Typography, Box, Button, Paper, Grid } from '@mui/material';
+import { Container, Typography, Box, Button, Paper, Grid, AppBar, Toolbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Groups, Person, ExitToApp } from '@mui/icons-material';
+import ThemeToggle from '../components/ThemeToggle';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
@@ -13,17 +14,26 @@ const DashboardPage = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ py: 4 }}>
-        <Paper elevation={2} sx={{ p: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" component="h1">
-              Welcome to TeamConnect
-            </Typography>
-            <Button variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout}>
-              Logout
-            </Button>
-          </Box>
+    <>
+      <AppBar position="static" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar>
+          <Typography variant="h6" color="text.primary" sx={{ flexGrow: 1 }}>
+            TeamConnect
+          </Typography>
+          <ThemeToggle />
+          <Button variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout} sx={{ ml: 2 }}>
+            Logout
+          </Button>
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="lg">
+        <Box sx={{ py: 4 }}>
+          <Paper elevation={2} sx={{ p: 4 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h4" component="h1">
+                Welcome to TeamConnect
+              </Typography>
+            </Box>
           <Typography variant="body1" gutterBottom>
             Hello, {user?.username}!
           </Typography>
@@ -64,6 +74,7 @@ const DashboardPage = () => {
         </Paper>
       </Box>
     </Container>
+    </>
   );
 };
 

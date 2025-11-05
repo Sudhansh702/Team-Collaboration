@@ -8,6 +8,7 @@ import CreateTeamPage from './pages/CreateTeamPage';
 import TeamSettingsPage from './pages/TeamSettingsPage';
 import WorkspacePage from './pages/WorkspacePage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import MeetingPage from './pages/MeetingPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -68,6 +69,14 @@ function App() {
         element={
           <ProtectedRoute>
             <AnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/meeting/:meetingId"
+        element={
+          <ProtectedRoute>
+            <MeetingPage />
           </ProtectedRoute>
         }
       />
