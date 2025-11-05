@@ -111,9 +111,10 @@ Frontend will run on `http://localhost:3000`
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
-- `PUT /api/auth/profile` - Update user profile
 - `POST /api/auth/refresh-token` - Refresh JWT token
+- `GET /api/auth/me` - Get current user
+- `GET /api/auth/:id` - Get user by ID (for fetching other users' info)
+- `PUT /api/auth/profile` - Update user profile
 
 ## Phase 2 Status: ✅ Complete
 

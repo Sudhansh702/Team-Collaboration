@@ -1,0 +1,101 @@
+
+{
+    "$schema": "uson://v1",
+  
+    "visual_language": {
+      "feel": "clean, modern, friendly, slightly playful",
+      "personality": "calm productivity",
+      "density": "airy with intentional white space",
+      "complexity": "low cognitive load"
+    },
+  
+    "color_system": {
+      "base_surface": "very light warm white",
+      "primary": "cool lavender / pastel purple",
+      "secondary": "pale blues + neutral grays",
+      "accent": "soft but saturated brand color used sparingly",
+      "semantic_colors": {
+        "success": "soft green",
+        "warning": "peach/orange",
+        "error": "soft red"
+      },
+      "usage_rules": {
+        "primary_usage": "large banner areas, section headers, dominant category backgrounds",
+        "neutral_usage": "card surfaces, list surfaces",
+        "accent_usage": "CTA, floating + buttons, small elements only"
+      }
+    },
+  
+    "typography": {
+      "headlines": {
+        "weight": "semibold/bold",
+        "size": "large for section intros",
+        "kerning": "slightly tighter"
+      },
+      "body": {
+        "weight": "regular/medium",
+        "size": "comfortable mid-range size (not tiny)",
+        "color": "near-black or dark gray"
+      },
+      "labels_tags": {
+        "weight": "semibold",
+        "caps": "sentence-case",
+        "contrast": "slightly higher for small chips"
+      }
+    },
+  
+    "component_primitives": {
+      "cards": {
+        "shape": "rounded corners (not tiny, not full pill)",
+        "elevation": "very soft shadow or none",
+        "content_flow": "vertical stack with strong breathing room"
+      },
+      "chips_tags": {
+        "shape": "pill",
+        "color_role": "semantic/neutral backgrounds, dark text"
+      },
+      "buttons": {
+        "shape": "rounded pill-ish",
+        "dominance": "minimal strong CTAs; mostly subtle ghost/filled small buttons"
+      },
+      "nav_bar": {
+        "type": "bottom tab bar",
+        "appearance": "soft icons, labels visible"
+      },
+      "avatars": {
+        "shape": "circle",
+        "size_usage": "small groups of overlapping avatars for tasks/assignees"
+      },
+      "charts": {
+        "style": "simplified bar charts with minimal gridlines",
+        "fills": "soft hatch/texture or subtle fill"
+      }
+    },
+  
+    "layout": {
+      "edges": "generous padding, not flush",
+      "grouping": "clear segmentation by background panels",
+      "top_region": "hero/banner region with greeting or section title",
+      "content_region": "stacked content cards",
+      "placement_rules": {
+        "floating_action_button": "center bottom or right bottom",
+        "section_filters": "segmented controls at top of list screens"
+      }
+    },
+  
+    "iconography": {
+      "stroke_weight": "thin-medium strokes",
+      "style": "neutral minimal line icons"
+    },
+  
+    "motion": {
+      "micro_interactions": "subtle opacity/scale ease",
+      "transitions": "fade/slide, not bouncy"
+    },
+  
+    "voice_and_tone": {
+      "copy_style": "short friendly declarative microcopy",
+      "tone": "supportive, encouraging, NOT robotic"
+    }
+  }
+  

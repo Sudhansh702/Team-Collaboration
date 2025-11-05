@@ -1,6 +1,29 @@
 import { Response, NextFunction } from 'express';
 import { TaskService } from '../services/task.service';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { ITask } from '../models/Task.model';
+
+// Helper function to transform task for frontend (convert populated objects to string IDs)
+const transformTask = (task: ITask | any): any => {
+  const taskObj = task.toObject ? task.toObject() : task;
+  
+  return {
+    ...taskObj,
+    _id: taskObj._id?.toString() || taskObj._id,
+    teamId: taskObj.teamId?._id?.toString() || taskObj.teamId?.toString() || taskObj.teamId,
+    channelId: taskObj.channelId?._id?.toString() || taskObj.channelId?.toString() || taskObj.channelId || null,
+    createdBy: taskObj.createdBy?._id?.toString() || taskObj.createdBy?.toString() || taskObj.createdBy,
+    assignedTo: Array.isArray(taskObj.assignedTo)
+      ? taskObj.assignedTo.map((item: any) => 
+          item._id?.toString() || item.toString() || item
+        )
+      : [],
+    createdAt: taskObj.createdAt?.toISOString() || taskObj.createdAt,
+    updatedAt: taskObj.updatedAt?.toISOString() || taskObj.updatedAt,
+    dueDate: taskObj.dueDate ? (taskObj.dueDate instanceof Date ? taskObj.dueDate.toISOString() : taskObj.dueDate) : undefined,
+    completedAt: taskObj.completedAt ? (taskObj.completedAt instanceof Date ? taskObj.completedAt.toISOString() : taskObj.completedAt) : undefined,
+  };
+};
 
 export const createTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -32,7 +55,7 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
-      data: { task }
+      data: { task: transformTask(task) }
     });
   } catch (error: any) {
     if (
@@ -61,7 +84,7 @@ export const getTeamTasks = async (req: AuthRequest, res: Response, next: NextFu
 
     res.status(200).json({
       success: true,
-      data: { tasks }
+      data: { tasks: tasks.map(transformTask) }
     });
   } catch (error: any) {
     if (
@@ -96,7 +119,7 @@ export const getTask = async (req: AuthRequest, res: Response, next: NextFunctio
 
     res.status(200).json({
       success: true,
-      data: { task }
+      data: { task: transformTask(task) }
     });
   } catch (error: any) {
     if (
@@ -134,7 +157,7 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
     res.status(200).json({
       success: true,
       message: 'Task updated successfully',
-      data: { task }
+      data: { task: transformTask(task) }
     });
   } catch (error: any) {
     if (

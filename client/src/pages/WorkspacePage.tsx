@@ -33,7 +33,6 @@ import {
   Message,
   Lock,
   PersonAdd,
-  Search as SearchIcon,
   Videocam,
   Task as TaskIcon
 } from '@mui/icons-material';
@@ -47,7 +46,9 @@ import NotificationCenter from '../components/NotificationCenter';
 import CallWindow from '../components/CallWindow';
 import IncomingCallModal from '../components/IncomingCallModal';
 import TaskList from '../components/TaskList';
+import MeetingList from '../components/MeetingList';
 import callService from '../services/call.service';
+import authService from '../services/auth.service';
 
 const DRAWER_WIDTH = 240;
 
@@ -68,8 +69,8 @@ const WorkspacePage = () => {
   });
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [workspaceTab, setWorkspaceTab] = useState<'messages' | 'tasks'>('messages');
+
+  const [workspaceTab, setWorkspaceTab] = useState<'messages' | 'tasks' | 'meetings'>('messages');
   
   // Call state
   const [incomingCall, setIncomingCall] = useState<{ from: string; callType: 'audio' | 'video'; callerName?: string } | null>(null);
@@ -85,20 +86,31 @@ const WorkspacePage = () => {
   useEffect(() => {
     if (!user || !user._id) return;
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5555';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
     callService.initializeSocket(socketUrl);
     
     // Join user room for call signaling
     callService.joinUserRoom(user._id);
 
     // Listen for incoming calls
-    const incomingCallHandler = (data: { from: string; callType: 'audio' | 'video'; teamId?: string }) => {
-      // TODO: Fetch caller name from API
-      setIncomingCall({
-        from: data.from,
-        callType: data.callType,
-        callerName: 'User' // Will be replaced with actual name
-      });
+    const incomingCallHandler = async (data: { from: string; callType: 'audio' | 'video'; teamId?: string }) => {
+      try {
+        // Fetch caller name from API
+        const callerUser = await authService.getUserById(data.from);
+        setIncomingCall({
+          from: data.from,
+          callType: data.callType,
+          callerName: callerUser.username || 'User'
+        });
+      } catch (error) {
+        console.error('Failed to fetch caller name:', error);
+        // Fallback to 'User' if API call fails
+        setIncomingCall({
+          from: data.from,
+          callType: data.callType,
+          callerName: 'User'
+        });
+      }
     };
 
     // Listen for call answered
@@ -392,13 +404,27 @@ const WorkspacePage = () => {
             <Typography variant="h6" color="text.primary" sx={{ flexGrow: 1 }}>
               {selectedChannel ? selectedChannel.name : 'Select a channel'}
             </Typography>
-            <IconButton
-              color="inherit"
-              onClick={() => setSearchOpen(true)}
-              sx={{ mr: 1 }}
-            >
-              <SearchIcon />
-            </IconButton>
+            <Box sx={{ flexGrow: 1, maxWidth: 400, mr: 2 }}>
+              <SearchBar
+                onSelectMessage={(_messageId, channelId) => {
+                  const channel = channels.find(c => c._id === channelId);
+                  if (channel) {
+                    setSelectedChannel(channel);
+                    setWorkspaceTab('messages');
+                  }
+                }}
+                onSelectChannel={(channelId) => {
+                  const channel = channels.find(c => c._id === channelId);
+                  if (channel) {
+                    setSelectedChannel(channel);
+                    setWorkspaceTab('messages');
+                  }
+                }}
+                onSelectTeam={(teamId) => {
+                  navigate(`/workspace/${teamId}`);
+                }}
+              />
+            </Box>
             <NotificationCenter />
             {/* Test Call Button - Shows first team member */}
             {team && team.members.length > 1 && (
@@ -450,28 +476,7 @@ const WorkspacePage = () => {
             )}
           </Toolbar>
         </AppBar>
-        {searchOpen && (
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <SearchBar
-              onSelectMessage={() => {
-                // Navigate to message - you might need to implement this
-                setSearchOpen(false);
-              }}
-              onSelectChannel={(channelId) => {
-                const channel = channels.find(c => c._id === channelId);
-                if (channel) {
-                  setSelectedChannel(channel);
-                  setSearchOpen(false);
-                }
-              }}
-              onSelectTeam={(teamId) => {
-                navigate(`/workspace/${teamId}`);
-                setSearchOpen(false);
-              }}
-            />
-          </Box>
-        )}
-        <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto', display: searchOpen ? 'none' : 'block' }}>
+        <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
               {error}
@@ -486,7 +491,7 @@ const WorkspacePage = () => {
 
           {selectedChannel ? (
             <Box>
-              {/* Tabs for Messages and Tasks */}
+              {/* Tabs for Messages, Tasks, and Meetings */}
               <Tabs
                 value={workspaceTab}
                 onChange={(_e, newValue) => setWorkspaceTab(newValue)}
@@ -504,6 +509,12 @@ const WorkspacePage = () => {
                   label="Tasks"
                   value="tasks"
                 />
+                <Tab
+                  icon={<Videocam />}
+                  iconPosition="start"
+                  label="Meetings"
+                  value="meetings"
+                />
               </Tabs>
 
               {/* Content based on selected tab */}
@@ -513,11 +524,13 @@ const WorkspacePage = () => {
                   channelName={selectedChannel.name}
                   team={team}
                 />
-              ) : (
+              ) : workspaceTab === 'tasks' ? (
                 <TaskList
                   team={team}
                   channelId={selectedChannel._id}
                 />
+              ) : (
+                <MeetingList team={team} />
               )}
             </Box>
           ) : (

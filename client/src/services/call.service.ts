@@ -20,20 +20,27 @@ class CallService {
   private socket: Socket | null = null;
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
   private callHandlers: Map<string, Function> = new Map();
   private pendingOffer: RTCSessionDescriptionInit | null = null;
   private currentUserId: string | null = null;
+  private remoteStreamHandler: ((stream: MediaStream) => void) | null = null;
 
   initializeSocket(socketUrl: string) {
+    // Reuse existing socket if connected
     if (this.socket && this.socket.connected) {
+      console.log('Reusing existing socket connection');
       return this.socket;
     }
 
-    // Disconnect existing socket if any
-    if (this.socket) {
+    // If socket exists but not connected, try to reconnect
+    if (this.socket && !this.socket.connected) {
+      console.log('Socket exists but not connected, disconnecting...');
       this.socket.disconnect();
+      this.socket = null;
     }
 
+    console.log('Initializing new socket connection');
     this.socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -59,6 +66,7 @@ class CallService {
     });
 
     this.socket.on('offer', async (data: CallOffer) => {
+      console.log('Offer received in call service socket:', data.from);
       await this.handleOffer(data);
     });
 
@@ -68,7 +76,9 @@ class CallService {
 
     this.socket.on('ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit }) => {
       if (this.peerConnection && data.candidate) {
-        this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(err => {
+          console.error('Error adding ICE candidate:', err);
+        });
       }
     });
 
@@ -103,13 +113,130 @@ class CallService {
     }
   }
 
+  private setupPeerConnectionHandlers(toUserId?: string) {
+    if (!this.peerConnection) return;
+
+    // Setup remote stream handler with proper event-driven approach
+    this.peerConnection.ontrack = (event: RTCTrackEvent) => {
+      console.log('ontrack event fired:', event);
+      console.log('Streams:', event.streams.length, 'Track:', event.track.kind, event.track.readyState);
+      console.log('Track ID:', event.track.id, 'Track enabled:', event.track.enabled);
+
+      let stream: MediaStream | null = null;
+
+      if (event.streams && event.streams.length > 0) {
+        // Use the stream from the event
+        stream = event.streams[0];
+      } else if (event.track) {
+        // Create stream from single track
+        stream = new MediaStream([event.track]);
+      }
+
+      if (stream) {
+        console.log('Processing remote stream with', stream.getTracks().length, 'tracks');
+        
+        // Handle the stream immediately - don't wait for readyState
+        // The video element will handle the track state
+        this.handleRemoteStream(stream);
+
+        // Also monitor track state changes
+        event.track.onended = () => {
+          console.log('Remote track ended:', event.track.kind);
+        };
+
+        // Monitor track state
+        const checkTrackState = () => {
+          if (event.track.readyState === 'live') {
+            console.log('Remote track is now live:', event.track.kind);
+            // Ensure stream is handled even if it wasn't before
+            this.handleRemoteStream(stream!);
+          } else if (event.track.readyState === 'ended') {
+            console.log('Remote track ended:', event.track.kind);
+          } else {
+            // Check again after a short interval
+            setTimeout(checkTrackState, 100);
+          }
+        };
+        
+        // Start checking if track is not live yet
+        if (event.track.readyState !== 'live') {
+          checkTrackState();
+        }
+      }
+    };
+
+    // Monitor connection state changes
+    this.peerConnection.oniceconnectionstatechange = () => {
+      const state = this.peerConnection?.iceConnectionState;
+      console.log('ICE connection state:', state);
+      
+      if (state === 'failed' || state === 'disconnected') {
+        console.warn('ICE connection issue:', state);
+      }
+    };
+
+    this.peerConnection.onconnectionstatechange = () => {
+      const state = this.peerConnection?.connectionState;
+      console.log('Peer connection state:', state);
+      
+      if (state === 'failed') {
+        this.emit('connection-error', { message: 'Connection failed' });
+      }
+    };
+
+    // Handle ICE candidates
+    if (toUserId) {
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate && this.socket) {
+          this.socket.emit('ice-candidate', {
+            to: toUserId,
+            candidate: event.candidate
+          });
+        }
+      };
+    }
+  }
+
+  private handleRemoteStream(stream: MediaStream) {
+    console.log('Handling remote stream:', stream.id, 'Tracks:', stream.getTracks().length);
+    
+    // Get all tracks from the stream
+    const tracks = stream.getTracks();
+    console.log('Stream tracks:', tracks.map(t => ({ kind: t.kind, id: t.id, readyState: t.readyState, enabled: t.enabled })));
+    
+    // If we already have a remote stream, merge tracks
+    if (this.remoteStream) {
+      // Remove old tracks
+      this.remoteStream.getTracks().forEach(track => {
+        this.remoteStream!.removeTrack(track);
+        track.stop();
+      });
+      
+      // Add new tracks
+      tracks.forEach(track => {
+        this.remoteStream!.addTrack(track);
+      });
+    } else {
+      // Store remote stream
+      this.remoteStream = stream;
+    }
+    
+    // Notify handler if set
+    if (this.remoteStreamHandler) {
+      console.log('Calling remote stream handler');
+      this.remoteStreamHandler(this.remoteStream);
+    }
+  }
+
   async initiateCall(from: string, to: string, callType: 'audio' | 'video', teamId?: string) {
     if (!this.socket) {
       throw new Error('Socket not initialized');
     }
 
     try {
-      // Check if we can reuse existing stream (only if same call type and tracks are active)
+
+
+      // Check if we can reuse existing stream
       if (!this.canReuseStream(callType)) {
         // Stop existing stream if any
         if (this.localStream) {
@@ -145,6 +272,9 @@ class CallService {
         ]
       });
 
+      // Setup event handlers BEFORE adding tracks (pass 'to' for ICE candidates)
+      this.setupPeerConnectionHandlers(to);
+
       // Add local tracks to peer connection
       if (this.localStream) {
         this.localStream.getTracks().forEach(track => {
@@ -154,55 +284,27 @@ class CallService {
         });
       }
 
-      // Setup remote stream handler BEFORE creating offer
-      this.peerConnection.ontrack = (event) => {
-        console.log('Received remote track:', event);
-        if (event.streams && event.streams[0]) {
-          const handler = this.callHandlers.get('remote-stream');
-          if (handler) {
-            handler(event.streams[0]);
-          }
-        } else if (event.track) {
-          // Fallback: create stream from track
-          const stream = new MediaStream([event.track]);
-          const handler = this.callHandlers.get('remote-stream');
-          if (handler) {
-            handler(stream);
-          }
-        }
-      };
-
-      // Handle ICE candidates
-      this.peerConnection.onicecandidate = (event) => {
-        if (event.candidate && this.socket) {
-          this.socket.emit('ice-candidate', {
-            to,
-            candidate: event.candidate
-          });
-        }
-      };
-
       // Create and send offer
-      const offer = await this.peerConnection.createOffer();
+      const offer = await this.peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: callType === 'video'
+      });
+      
       await this.peerConnection.setLocalDescription(offer);
 
       // Emit call initiation first
       this.socket.emit('call-initiate', { from, to, callType, teamId });
 
-      // Send offer after a small delay to ensure the recipient is ready
-      setTimeout(() => {
-        if (this.socket && this.peerConnection) {
-          this.socket.emit('offer', {
-            from,
-            to,
-            offer: offer
-          });
-        }
-      }, 100);
+      // Send offer after ensuring local description is set
+      this.socket.emit('offer', {
+        from,
+        to,
+        offer: offer
+      });
     } catch (error: any) {
       console.error('Error initiating call:', error);
       
-      // Provide more specific error messages
+      // Provide specific error messages
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         throw new Error('Camera/microphone permission denied. Please allow access in your browser settings and try again.');
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
@@ -225,7 +327,55 @@ class CallService {
     }
 
     try {
-      // Check if we can reuse existing stream (only if same call type and tracks are active)
+      // Wait for offer if not provided - wait up to 5 seconds
+      let offerToUse = offer || this.pendingOffer;
+      
+      if (!offerToUse) {
+        console.log('Waiting for offer to arrive...');
+        // Wait for offer to arrive via socket event
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Offer not received within timeout. The caller may have disconnected.'));
+          }, 5000); // Wait 5 seconds for offer
+
+          const checkOffer = () => {
+            if (this.pendingOffer) {
+              offerToUse = this.pendingOffer;
+              clearTimeout(timeout);
+              this.socket?.off('offer', checkOffer);
+              resolve();
+            }
+          };
+
+          // Create a one-time listener for offer event
+          const offerListener = (data: CallOffer) => {
+            if (data.from === from) {
+              this.pendingOffer = data.offer;
+              offerToUse = data.offer;
+              clearTimeout(timeout);
+              this.socket?.off('offer', offerListener);
+              resolve();
+            }
+          };
+          
+          // Listen for offer event (this is in addition to the main handler)
+          if (this.socket) {
+            this.socket.on('offer', offerListener);
+          }
+
+          // Check immediately in case offer arrived before we started waiting
+          if (this.pendingOffer) {
+            offerToUse = this.pendingOffer;
+            clearTimeout(timeout);
+            if (this.socket) {
+              this.socket.off('offer', checkOffer);
+            }
+            resolve();
+          }
+        });
+      }
+
+      // Check if we can reuse existing stream
       if (!this.canReuseStream(callType)) {
         // Stop existing stream if any
         if (this.localStream) {
@@ -261,25 +411,19 @@ class CallService {
         ]
       });
 
-      // Setup remote stream handler BEFORE creating answer
-      this.peerConnection.ontrack = (event) => {
-        console.log('Received remote track (answer):', event);
-        if (event.streams && event.streams[0]) {
-          const handler = this.callHandlers.get('remote-stream');
-          if (handler) {
-            handler(event.streams[0]);
-          }
-        } else if (event.track) {
-          // Fallback: create stream from track
-          const stream = new MediaStream([event.track]);
-          const handler = this.callHandlers.get('remote-stream');
-          if (handler) {
-            handler(stream);
-          }
-        }
-      };
+      // Setup event handlers FIRST (before anything else)
+      this.setupPeerConnectionHandlers(from);
 
-      // Add local tracks to peer connection
+      // Ensure we have the offer
+      if (!offerToUse) {
+        throw new Error('Offer not received. Cannot answer call.');
+      }
+
+      // Set remote description FIRST (this is critical for track events)
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerToUse));
+      this.pendingOffer = null;
+
+      // Add local tracks AFTER setting remote description
       if (this.localStream) {
         this.localStream.getTracks().forEach(track => {
           if (this.peerConnection) {
@@ -288,38 +432,29 @@ class CallService {
         });
       }
 
-      // Handle ICE candidates
-      this.peerConnection.onicecandidate = (event) => {
-        if (event.candidate && this.socket) {
-          this.socket.emit('ice-candidate', {
-            from,
-            to,
-            candidate: event.candidate
+      // Check for existing remote tracks (in case tracks were received before handler was set)
+      setTimeout(() => {
+        if (this.peerConnection) {
+          const receivers = this.peerConnection.getReceivers();
+          const remoteStream = new MediaStream();
+          receivers.forEach(receiver => {
+            if (receiver.track) {
+              remoteStream.addTrack(receiver.track);
+            }
           });
+          if (remoteStream.getTracks().length > 0) {
+            console.log('Found existing remote tracks, handling stream');
+            this.handleRemoteStream(remoteStream);
+          }
         }
-      };
-
-      // Check for pending offer or use provided offer
-      const offerToUse = offer || this.pendingOffer;
-
-      if (!offerToUse) {
-        // Wait a bit for the offer to arrive
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        if (this.pendingOffer) {
-          await this.peerConnection.setRemoteDescription(new RTCSessionDescription(this.pendingOffer));
-          this.pendingOffer = null;
-        } else {
-          throw new Error('Offer not received. Cannot answer call.');
-        }
-      } else {
-        // Set remote description (the offer from the caller)
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerToUse));
-        // Clear pending offer
-        this.pendingOffer = null;
-      }
+      }, 100);
 
       // Create and send answer
-      const answer = await this.peerConnection.createAnswer();
+      const answer = await this.peerConnection.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: callType === 'video'
+      });
+      
       await this.peerConnection.setLocalDescription(answer);
 
       // Send answer via call-answer event
@@ -341,7 +476,7 @@ class CallService {
       // Cleanup on error
       this.cleanup();
       
-      // Provide more specific error messages
+      // Provide specific error messages
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         throw new Error('Camera/microphone permission denied. Please allow access in your browser settings and try again.');
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
@@ -359,11 +494,13 @@ class CallService {
   }
 
   private async handleOffer(data: CallOffer) {
-    // Always store the offer first (for incoming calls)
+    console.log('Offer received from:', data.from);
+    // Store the offer for when answerCall is called
     this.pendingOffer = data.offer;
     
-    // If we have a peer connection already, handle the offer immediately
-    if (this.peerConnection && this.localStream) {
+    // If we already have a peer connection and stream, handle immediately
+    // This handles the case where the user answered before the offer arrived
+    if (this.peerConnection && this.localStream && this.peerConnection.signalingState !== 'stable') {
       try {
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
         
@@ -385,7 +522,7 @@ class CallService {
         console.error('Error handling offer:', error);
       }
     }
-    // If no peer connection, the offer is stored and will be used when answerCall is called
+    // Otherwise, the offer is stored and will be used when answerCall is called
   }
 
   private async handleAnswer(data: CallAnswer) {
@@ -418,26 +555,20 @@ class CallService {
     return this.localStream;
   }
 
+  getRemoteStream(): MediaStream | null {
+    return this.remoteStream;
+  }
+
   getPeerConnection(): RTCPeerConnection | null {
     return this.peerConnection;
   }
 
   setRemoteStreamHandler(handler: (stream: MediaStream) => void) {
-    // Store handler for later use
-    this.callHandlers.set('remote-stream', handler);
+    this.remoteStreamHandler = handler;
     
-    // If peer connection already exists, set up handler
-    if (this.peerConnection) {
-      this.peerConnection.ontrack = (event) => {
-        console.log('Remote track in handler:', event);
-        if (event.streams && event.streams[0]) {
-          handler(event.streams[0]);
-        } else if (event.track) {
-          // Fallback: create stream from track
-          const stream = new MediaStream([event.track]);
-          handler(stream);
-        }
-      };
+    // If we already have a remote stream, call handler immediately
+    if (this.remoteStream) {
+      handler(this.remoteStream);
     }
   }
 
@@ -470,6 +601,13 @@ class CallService {
         track.enabled = false;
       });
       this.localStream = null;
+    }
+
+    if (this.remoteStream) {
+      this.remoteStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      this.remoteStream = null;
     }
 
     if (this.peerConnection) {

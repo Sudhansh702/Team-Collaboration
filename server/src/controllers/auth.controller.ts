@@ -344,3 +344,44 @@ export const refreshToken = async (
   }
 };
 
+export const getUserById = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Fetch user by ID (excluding password)
+    const user = await User.findById(id).select('username email avatar _id');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Convert to plain object
+    const userObj: any = user.toObject ? user.toObject() : user;
+    // Ensure _id is a string
+    if (userObj._id) {
+      userObj._id = userObj._id.toString();
+    }
+
+    res.json({
+      success: true,
+      data: { user: userObj }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -48,100 +48,160 @@ const CallWindow: React.FC<CallWindowProps> = ({
   useEffect(() => {
     if (!open || !user) return;
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5555';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
     callService.initializeSocket(socketUrl);
     
     // Join user room
     callService.joinUserRoom(user._id!);
 
+    // Setup remote stream handler BEFORE starting call
+    callService.setRemoteStreamHandler((stream: MediaStream) => {
+      console.log('Remote stream received in CallWindow:', stream);
+      console.log('Stream tracks:', stream.getTracks().map(t => ({ kind: t.kind, id: t.id, readyState: t.readyState, enabled: t.enabled })));
+      
+      // Update remote stream state immediately
+      if (stream && stream.getTracks().length > 0) {
+        setRemoteStream(stream);
+        setCallStatus('in-call');
+        setError(null);
+        console.log('Remote stream set in CallWindow state');
+      }
+    });
+
     // Setup call event handlers
     callService.on('call-answered', handleCallAnswered);
     callService.on('call-rejected', handleCallRejected);
     callService.on('call-ended', handleCallEnded);
-
-    // Setup remote stream handler BEFORE starting call
-    callService.setRemoteStreamHandler((stream: MediaStream) => {
-      console.log('Remote stream received:', stream, 'Active tracks:', stream.getTracks().filter(t => t.readyState === 'live'));
-      
-      // Only update if stream has active tracks
-      if (stream.getTracks().length > 0) {
-        setRemoteStream(stream);
-        setCallStatus('in-call');
-        setError(null);
-        
-        // Force update video element
-        setTimeout(() => {
-          if (remoteVideoRef.current && stream) {
-            remoteVideoRef.current.srcObject = stream;
-            remoteVideoRef.current.play()
-              .then(() => console.log('Remote video playing'))
-              .catch(err => {
-                console.error('Error playing remote video:', err);
-                // Retry after delay
-                setTimeout(() => {
-                  if (remoteVideoRef.current && stream) {
-                    remoteVideoRef.current.play().catch(console.error);
-                  }
-                }, 1000);
-              });
-          }
-        }, 100);
-      }
+    callService.on('connection-error', (data: { message: string }) => {
+      setError(data.message);
+      setCallStatus('ended');
     });
 
-    // Start call after a short delay to ensure socket is ready
-    const startCallTimer = setTimeout(() => {
+    // Start call after socket is ready
+    // For incoming calls, wait a bit for offer to arrive
+    const initTimer = setTimeout(() => {
       if (isIncoming) {
-        // Answer incoming call
+        // Answer incoming call - will wait for offer if not received yet
         handleAnswerCall();
       } else {
         // Initiate call
         handleInitiateCall();
       }
-    }, 100);
+    }, 200); // Small delay to ensure socket events are set up
 
     return () => {
-      clearTimeout(startCallTimer);
+      clearTimeout(initTimer);
       callService.off('call-answered');
       callService.off('call-rejected');
       callService.off('call-ended');
+      callService.off('connection-error');
       callService.leaveUserRoom(user._id!);
     };
   }, [open, user, otherUserId, isIncoming]);
 
   useEffect(() => {
-    // Update local video stream
+    // Update local video stream when it changes
     const localStream = callService.getLocalStream();
     if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.play().catch(err => {
-        console.error('Error playing local video:', err);
-      });
+      const videoElement = localVideoRef.current;
+      videoElement.srcObject = localStream;
+      
+      // Use event-driven approach instead of setTimeout
+      const handleCanPlay = () => {
+        videoElement.play().catch(err => {
+          console.error('Error playing local video:', err);
+        });
+      };
+      
+      videoElement.addEventListener('loadedmetadata', handleCanPlay);
+      videoElement.addEventListener('canplay', handleCanPlay);
+      
+      // Try playing immediately if already ready
+      if (videoElement.readyState >= 2) {
+        videoElement.play().catch(console.error);
+      }
+      
+      return () => {
+        videoElement.removeEventListener('loadedmetadata', handleCanPlay);
+        videoElement.removeEventListener('canplay', handleCanPlay);
+      };
     }
   }, [open, callStatus]);
 
   useEffect(() => {
-    // Update remote video stream when it changes
-    if (remoteStream && remoteVideoRef.current) {
+    // Update remote video stream when it changes - event-driven approach
+    if (remoteStream && remoteVideoRef.current && callType === 'video') {
+      const videoElement = remoteVideoRef.current;
       console.log('Setting remote stream to video element:', remoteStream);
-      remoteVideoRef.current.srcObject = remoteStream;
-      // Ensure video plays
-      const playPromise = remoteVideoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Remote video playing successfully');
-          })
-          .catch(err => {
-            console.error('Error playing remote video:', err);
-            // Try again after a short delay
-            setTimeout(() => {
-              if (remoteVideoRef.current && remoteStream) {
-                remoteVideoRef.current.play().catch(console.error);
-              }
-            }, 500);
-          });
-      }
+      console.log('Remote stream tracks:', remoteStream.getTracks().map(t => ({ kind: t.kind, id: t.id, readyState: t.readyState, enabled: t.enabled })));
+      
+      // Set the stream
+      videoElement.srcObject = remoteStream;
+      
+      // Force play immediately
+      const playVideo = () => {
+        videoElement.play().catch(err => {
+          console.error('Error playing remote video:', err);
+        });
+      };
+      
+      // Use event-driven approach for playing video
+      const handleLoadedMetadata = () => {
+        console.log('Remote video metadata loaded');
+        playVideo();
+      };
+      
+      const handleCanPlay = () => {
+        console.log('Remote video can play');
+        playVideo();
+      };
+      
+      const handlePlay = () => {
+        console.log('Remote video playing successfully');
+      };
+      
+      const handleError = (e: Event) => {
+        console.error('Remote video error:', e);
+      };
+      
+      // Add event listeners
+      videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+      videoElement.addEventListener('canplay', handleCanPlay);
+      videoElement.addEventListener('play', handlePlay);
+      videoElement.addEventListener('error', handleError);
+      
+      // Try playing immediately
+      playVideo();
+      
+      // Also try after a short delay
+      setTimeout(playVideo, 100);
+      setTimeout(playVideo, 500);
+      
+      // Monitor track state changes
+      const trackStateCheckers: NodeJS.Timeout[] = [];
+      remoteStream.getTracks().forEach(track => {
+        const checkTrack = () => {
+          console.log('Checking track state:', track.kind, track.readyState, track.enabled);
+          if (track.readyState === 'live' && videoElement.paused) {
+            console.log('Remote track is live, attempting to play video');
+            playVideo();
+          } else if (track.readyState !== 'ended' && track.readyState !== 'live') {
+            // Check again if not ended and not live yet
+            const timeoutId = setTimeout(checkTrack, 100);
+            trackStateCheckers.push(timeoutId);
+          }
+        };
+        checkTrack();
+      });
+      
+      return () => {
+        videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        videoElement.removeEventListener('canplay', handleCanPlay);
+        videoElement.removeEventListener('play', handlePlay);
+        videoElement.removeEventListener('error', handleError);
+        // Clear all track state checkers
+        trackStateCheckers.forEach(timeoutId => clearTimeout(timeoutId));
+      };
     } else if (remoteVideoRef.current && callType === 'video') {
       // Clear if no stream
       remoteVideoRef.current.srcObject = null;
@@ -180,9 +240,11 @@ const CallWindow: React.FC<CallWindowProps> = ({
       const errorMessage = error.message || 'Failed to answer call. Please check your camera/microphone permissions.';
       setError(errorMessage);
       setCallStatus('ended');
+      // Cleanup immediately on error
+      callService.cleanup();
       setTimeout(() => {
         onClose();
-      }, 2000);
+      }, 3000);
     }
   };
 
@@ -209,9 +271,20 @@ const CallWindow: React.FC<CallWindowProps> = ({
     if (user) {
       callService.endCall(user._id!, otherUserId);
     }
+    // Ensure cleanup happens
     callService.cleanup();
     onClose();
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (!open) {
+        // Only cleanup if dialog is closed
+        callService.cleanup();
+      }
+    };
+  }, [open]);
 
   const handleToggleMute = () => {
     const muted = callService.toggleMute();
@@ -275,11 +348,6 @@ const CallWindow: React.FC<CallWindowProps> = ({
                 objectFit: 'cover',
                 backgroundColor: 'black'
               }}
-              onLoadedMetadata={() => {
-                if (remoteVideoRef.current) {
-                  remoteVideoRef.current.play().catch(console.error);
-                }
-              }}
             />
           )}
           
@@ -322,11 +390,6 @@ const CallWindow: React.FC<CallWindowProps> = ({
                   height: '100%',
                   objectFit: 'cover',
                   transform: 'scaleX(-1)' // Mirror effect
-                }}
-                onLoadedMetadata={() => {
-                  if (localVideoRef.current) {
-                    localVideoRef.current.play().catch(console.error);
-                  }
                 }}
               />
             </Box>

@@ -1,6 +1,29 @@
 import { Response, NextFunction } from 'express';
 import { MeetingService } from '../services/meeting.service';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { IMeeting } from '../models/Meeting.model';
+import { io } from '../index';
+
+// Helper function to transform meeting for frontend (convert populated objects to string IDs)
+const transformMeeting = (meeting: IMeeting | any): any => {
+  const meetingObj = meeting.toObject ? meeting.toObject() : meeting;
+  
+  return {
+    ...meetingObj,
+    _id: meetingObj._id?.toString() || meetingObj._id,
+    teamId: meetingObj.teamId?._id?.toString() || meetingObj.teamId?.toString() || meetingObj.teamId,
+    organizerId: meetingObj.organizerId?._id?.toString() || meetingObj.organizerId?.toString() || meetingObj.organizerId,
+    participants: Array.isArray(meetingObj.participants)
+      ? meetingObj.participants.map((item: any) => 
+          item._id?.toString() || item.toString() || item
+        )
+      : [],
+    startTime: meetingObj.startTime ? (meetingObj.startTime instanceof Date ? meetingObj.startTime.toISOString() : meetingObj.startTime) : undefined,
+    endTime: meetingObj.endTime ? (meetingObj.endTime instanceof Date ? meetingObj.endTime.toISOString() : meetingObj.endTime) : undefined,
+    createdAt: meetingObj.createdAt?.toISOString() || meetingObj.createdAt,
+    updatedAt: meetingObj.updatedAt?.toISOString() || meetingObj.updatedAt,
+  };
+};
 
 export const createMeeting = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -9,7 +32,7 @@ export const createMeeting = async (req: AuthRequest, res: Response, next: NextF
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    const { title, description, teamId, startTime, endTime, participants, meetingLink } = req.body;
+    const { title, description, teamId, startTime, endTime, participants } = req.body;
 
     if (!title || !teamId || !startTime || !endTime) {
       return res.status(400).json({
@@ -25,14 +48,18 @@ export const createMeeting = async (req: AuthRequest, res: Response, next: NextF
       userId,
       new Date(startTime),
       new Date(endTime),
-      participants || [],
-      meetingLink
+      participants || []
     );
 
+    const transformedMeeting = transformMeeting(meeting);
+    
+    // Emit real-time event to team room
+    io.to(`team:${teamId}`).emit('meeting-created', transformedMeeting);
+    
     res.status(201).json({
       success: true,
       message: 'Meeting created successfully',
-      data: { meeting }
+      data: { meeting: transformedMeeting }
     });
   } catch (error: any) {
     if (
@@ -60,7 +87,7 @@ export const getTeamMeetings = async (req: AuthRequest, res: Response, next: Nex
 
     res.status(200).json({
       success: true,
-      data: { meetings }
+      data: { meetings: meetings.map(transformMeeting) }
     });
   } catch (error: any) {
     if (
@@ -95,7 +122,7 @@ export const getMeeting = async (req: AuthRequest, res: Response, next: NextFunc
 
     res.status(200).json({
       success: true,
-      data: { meeting }
+      data: { meeting: transformMeeting(meeting) }
     });
   } catch (error: any) {
     if (
@@ -119,7 +146,7 @@ export const updateMeeting = async (req: AuthRequest, res: Response, next: NextF
     }
 
     const { id } = req.params;
-    const { title, description, startTime, endTime, participants, meetingLink, status } = req.body;
+    const { title, description, startTime, endTime, participants, status } = req.body;
 
     const meeting = await MeetingService.updateMeeting(id, userId, {
       title,
@@ -127,14 +154,18 @@ export const updateMeeting = async (req: AuthRequest, res: Response, next: NextF
       startTime: startTime ? new Date(startTime) : undefined,
       endTime: endTime ? new Date(endTime) : undefined,
       participants,
-      meetingLink,
       status
     });
 
+    const transformedMeeting = transformMeeting(meeting);
+    
+    // Emit real-time event to team room
+    io.to(`team:${transformedMeeting.teamId}`).emit('meeting-updated', transformedMeeting);
+    
     res.status(200).json({
       success: true,
       message: 'Meeting updated successfully',
-      data: { meeting }
+      data: { meeting: transformedMeeting }
     });
   } catch (error: any) {
     if (
@@ -159,7 +190,23 @@ export const deleteMeeting = async (req: AuthRequest, res: Response, next: NextF
     }
 
     const { id } = req.params;
+    const meeting = await MeetingService.getMeetingById(id, userId);
+    
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: 'Meeting not found'
+      });
+    }
+    
+    const teamId = typeof meeting.teamId === 'object' && meeting.teamId && '_id' in meeting.teamId
+      ? (meeting.teamId as any)._id.toString()
+      : String(meeting.teamId);
+    
     await MeetingService.deleteMeeting(id, userId);
+
+    // Emit real-time event to team room
+    io.to(`team:${teamId}`).emit('meeting-deleted', { meetingId: id });
 
     res.status(200).json({
       success: true,

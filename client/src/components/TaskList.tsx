@@ -24,6 +24,7 @@ import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
 import taskService from '../services/task.service';
 import { Task, Team } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface TaskListProps {
   team: Team;
@@ -31,6 +32,7 @@ interface TaskListProps {
 }
 
 const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,7 +50,32 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
 
   useEffect(() => {
     filterTasks();
-  }, [tasks, searchQuery, statusFilter, priorityFilter, selectedTab]);
+  }, [tasks, searchQuery, statusFilter, priorityFilter, selectedTab, user]);
+
+  // Listen for storage events to refresh when task is created from notification
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'taskCreated' || e.key === 'taskUpdated') {
+        loadTasks();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events
+    const handleTaskUpdate = () => {
+      loadTasks();
+    };
+    
+    window.addEventListener('taskCreated', handleTaskUpdate);
+    window.addEventListener('taskUpdated', handleTaskUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('taskCreated', handleTaskUpdate);
+      window.removeEventListener('taskUpdated', handleTaskUpdate);
+    };
+  }, []);
 
   const loadTasks = async () => {
     try {
@@ -59,7 +86,12 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
       // Filter by channel if provided
       let filtered = teamTasks;
       if (channelId) {
-        filtered = teamTasks.filter(t => t.channelId === channelId);
+        filtered = teamTasks.filter(t => {
+          // Handle both string IDs and null/undefined
+          const taskChannelId = t.channelId?.toString() || t.channelId || null;
+          const filterChannelId = channelId?.toString() || channelId || null;
+          return taskChannelId === filterChannelId;
+        });
       }
       
       setTasks(filtered);
@@ -74,9 +106,16 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
     let filtered = [...tasks];
 
     // Tab filter (my tasks, all tasks)
-    if (selectedTab === 1) {
-      // My tasks - filter by assigned to current user
-      // This would need user context - for now show all
+    if (selectedTab === 1 && user?._id) {
+      // My tasks - filter by assigned to current user or created by user
+      const userId = user._id?.toString() || user._id;
+      filtered = filtered.filter(task => {
+        const taskCreatedBy = task.createdBy?.toString() || task.createdBy;
+        const taskAssignedTo = Array.isArray(task.assignedTo)
+          ? task.assignedTo.map(id => id?.toString() || id)
+          : [];
+        return taskAssignedTo.includes(userId) || taskCreatedBy === userId;
+      });
     }
 
     // Search filter
@@ -144,6 +183,8 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
 
   const handleTaskModalSuccess = () => {
     loadTasks();
+    // Trigger custom event for other components
+    window.dispatchEvent(new Event('taskUpdated'));
   };
 
   const getTaskStats = () => {

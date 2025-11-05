@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   TextField,
@@ -51,7 +51,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(true); // Keep search bar open by default when rendered
+  const [open, setOpen] = useState(false); // Show results when query is entered
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -72,14 +73,29 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }
   };
 
+  useEffect(() => {
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleQueryChange = (value: string) => {
     setQuery(value);
+    
+    // Clear previous timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
     if (value.trim()) {
+      setOpen(true);
       // Debounce search
-      const timeoutId = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         handleSearch(value);
       }, 300);
-      return () => clearTimeout(timeoutId);
     } else {
       setResults(null);
       setOpen(false);

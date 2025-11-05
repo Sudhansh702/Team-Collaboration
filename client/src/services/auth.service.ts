@@ -266,6 +266,18 @@ class AuthService {
     throw new Error('Failed to update profile');
   }
 
+  async getUserById(userId: string): Promise<User> {
+    try {
+      const response = await apiService.get<{ user: User }>(`/auth/${userId}`);
+      if (response.success && response.data) {
+        return response.data.user;
+      }
+      throw new Error('Failed to get user');
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
   getStoredUser(): User | null {
     const userStr = localStorage.getItem('user');
     if (userStr) {

@@ -11,8 +11,7 @@ export class MeetingService {
     organizerId: string,
     startTime: Date,
     endTime: Date,
-    participants: string[] = [],
-    meetingLink?: string
+    participants: string[] = []
   ): Promise<IMeeting> {
     const team = await Team.findById(teamId);
     if (!team) {
@@ -39,7 +38,6 @@ export class MeetingService {
       startTime,
       endTime,
       participants,
-      meetingLink,
       status: 'scheduled'
     });
 
@@ -127,7 +125,6 @@ export class MeetingService {
       startTime?: Date;
       endTime?: Date;
       participants?: string[];
-      meetingLink?: string;
       status?: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
     }
   ): Promise<IMeeting> {
@@ -157,7 +154,6 @@ export class MeetingService {
     if (updateData.participants !== undefined) {
       meeting.participants = updateData.participants.map(id => id as any);
     }
-    if (updateData.meetingLink !== undefined) meeting.meetingLink = updateData.meetingLink;
     if (updateData.status !== undefined) meeting.status = updateData.status;
 
     await meeting.save();

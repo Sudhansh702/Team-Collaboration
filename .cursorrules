@@ -1,0 +1,84 @@
+# TeamConnect Project Rules
+
+## Project Overview
+This is TeamConnect - a Smart Team Collaboration Platform with real-time messaging, task management, video calls, and more.
+
+## Project Structure
+- `client/` - React frontend (TypeScript, Vite, Material-UI)
+- `server/` - Node.js backend (Express, TypeScript, MongoDB, Socket.io)
+- `shared/` - Shared TypeScript types and utilities
+
+## Coding Standards
+
+### General
+- Always use TypeScript for type safety
+- Follow existing code patterns and architecture
+- Write clean, readable, and maintainable code
+- Add comments for complex logic
+- Use meaningful variable and function names
+
+### Frontend (client/)
+- Use React 18+ with functional components and hooks
+- Prefer Material-UI components when available
+- Use React Query for data fetching and caching
+- Follow the existing folder structure and naming conventions
+- Ensure responsive design for all UI components
+- Use TypeScript interfaces from `shared/` for type definitions
+- Use Framer Motion for animation effects when needed, following the visual and motion guidelines in `Deisgn.json`
+
+### Backend (server/)
+- Use Express.js with TypeScript
+- Follow RESTful API conventions
+- Use Mongoose for MongoDB operations
+- Implement proper error handling and validation
+- Use JWT for authentication
+- Use Socket.io for real-time features
+- Keep business logic in service layers, not in routes
+
+### Shared Types
+- Define shared TypeScript interfaces in `shared/` directory
+- Keep types consistent across frontend and backend
+- Export types for reuse in both client and server
+
+## Security Guidelines
+- Never commit sensitive data (API keys, passwords, tokens)
+- Use environment variables for configuration
+- Validate all user inputs
+- Implement proper authentication and authorization
+- Use HTTPS in production
+
+## Testing
+- When fixing a bug, always address the root cause; implement a permanent solution rather than a temporary patch.
+- When adding a new feature, ensure it is thoroughly tested—including manual browser testing—before merging.
+- All changes and new tests must not break existing features or functionality.
+- Write tests for all critical functionality.
+- Maintain test coverage wherever feasible.
+- Test both successful and error scenarios for each feature or fix.
+
+## Git & Version Control
+- Write clear, descriptive commit messages
+- Follow branching strategy as defined in project
+- Don't commit generated files or dependencies
+
+## Documentation
+- Keep documentation as short and clear as possible—include only required info
+- Update docs when you make changes
+- Only document APIs and features as needed for understanding and usage
+
+## Important Notes
+- Always check existing code before implementing new features
+- Maintain consistency with the current tech stack
+- Consider performance implications of code changes
+- Ensure backward compatibility when modifying existing APIs
+
+
+- Always maintain and regularly update the `FEATURE_INVENTORY.md` file in the project root. This document tracks all major features, indicating which are implemented, working, broken, or planned (high/low priority). 
+- When adding, modifying, or removing a feature, make sure the corresponding section in `FEATURE_INVENTORY.md` accurately reflects the current project status.
+- Use consistent formatting and detailed descriptions for each feature to ensure clarity for all collaborators.
+
+- Follow the visual and UX guidance described in `Deisgn.json` for all UI and design decisions. Ensure colors, typography, spacing, component shapes, and motion align with the definitions and principles in that file.
+
+
+- Maintain a clean and organized codebase at all times.
+- Regularly review and remove unused code, imports, variables, and dependencies.
+- Ensure all submitted code adheres to industry-level coding standards and best practices (naming, structure, documentation, etc.).

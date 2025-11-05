@@ -8,8 +8,7 @@ class MeetingService {
     startTime: string,
     endTime: string,
     description?: string,
-    participants: string[] = [],
-    meetingLink?: string
+    participants: string[] = []
   ): Promise<Meeting> {
     const response = await apiService.post<{ meeting: Meeting }>('/meetings', {
       title,
@@ -17,8 +16,7 @@ class MeetingService {
       teamId,
       startTime,
       endTime,
-      participants,
-      meetingLink
+      participants
     });
     
     if (response.success && response.data) {
@@ -51,7 +49,6 @@ class MeetingService {
       startTime?: string;
       endTime?: string;
       participants?: string[];
-      meetingLink?: string;
       status?: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
     }
   ): Promise<Meeting> {

@@ -14,6 +14,7 @@ import notificationRoutes from './routes/notification.routes';
 import fileRoutes from './routes/file.routes';
 import searchRoutes from './routes/search.routes';
 import { errorHandler } from './middleware/errorHandler';
+import { MeetingReminderService } from './services/meetingReminder.service';
 
 // WebRTC type definitions for Node.js
 interface RTCSessionDescriptionInit {
@@ -356,6 +357,18 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Join team room for meeting updates
+  socket.on('join-team-room', (teamId: string) => {
+    socket.join(`team:${teamId}`);
+    console.log(`User ${socket.id} joined team room: ${teamId}`);
+  });
+
+  // Leave team room
+  socket.on('leave-team-room', (teamId: string) => {
+    socket.leave(`team:${teamId}`);
+    console.log(`User ${socket.id} left team room: ${teamId}`);
+  });
+
   // Join user room for call signaling
   socket.on('join-user-room', (userId: string) => {
     socket.join(`user:${userId}`);
@@ -387,5 +400,8 @@ httpServer.listen(PORT, HOST, () => {
   if (HOST === '0.0.0.0') {
     console.log(`Server is accessible from network at http://192.168.1.4:${PORT}`);
   }
+  
+  // Start meeting reminder service
+  MeetingReminderService.start();
 });
 
