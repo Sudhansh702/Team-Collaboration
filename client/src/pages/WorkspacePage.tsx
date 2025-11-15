@@ -26,8 +26,7 @@ import {
   Select,
   MenuItem,
   Tabs,
-  Tab,
-  Badge
+  Tab
 } from '@mui/material';
 import {
   Settings,
@@ -272,9 +271,18 @@ const WorkspacePage = () => {
             {team.name}
           </Typography>
         </Toolbar>
-        <Box sx={{ overflow: 'auto', p: 1 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
-            <Typography variant="subtitle2" color="text.secondary">
+        <Box sx={{ overflow: 'auto', p: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, px: 0.5 }}>
+            <Typography 
+              variant="subtitle2" 
+              color="text.secondary"
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
               Channels
             </Typography>
             {team && user && (
@@ -282,9 +290,16 @@ const WorkspacePage = () => {
                 size="small" 
                 onClick={() => setCreateChannelDialogOpen(true)}
                 title="Create Channel"
-                color="primary"
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.dark',
+                  },
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <Add />
+                <Add fontSize="small" />
               </IconButton>
             )}
           </Box>
@@ -300,13 +315,21 @@ const WorkspacePage = () => {
               )}
             </Box>
           ) : (
-            <List>
+            <List sx={{ px: 0.5 }}>
               {channels.map((channel) => {
                 const unreadCount = unreadCounts[channel._id] || 0;
+                const isSelected = selectedChannel?._id === channel._id;
                 return (
-                  <ListItem key={channel._id} disablePadding>
+                  <ListItem 
+                    key={channel._id} 
+                    disablePadding
+                    sx={{ 
+                      mb: 0.5,
+                      '&:last-child': { mb: 0 }
+                    }}
+                  >
                     <ListItemButton
-                      selected={selectedChannel?._id === channel._id}
+                      selected={isSelected}
                       onClick={async () => {
                         setSelectedChannel(channel);
                         // Mark channel as read when selecting
@@ -320,25 +343,89 @@ const WorkspacePage = () => {
                           }
                         }
                       }}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1,
+                        px: 1.5,
+                        transition: 'all 0.2s ease',
+                        '&.Mui-selected': {
+                          backgroundColor: 'primary.light',
+                          color: 'primary.dark',
+                          '&:hover': {
+                            backgroundColor: 'primary.light',
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: 'primary.dark',
+                          },
+                        },
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                          transform: 'translateX(2px)',
+                        },
+                      }}
                     >
-                      <ListItemIcon>
-                        {channel.type === 'private' ? <Lock fontSize="small" /> : <Message fontSize="small" />}
+                      <ListItemIcon sx={{ minWidth: 36, color: isSelected ? 'primary.dark' : 'text.secondary' }}>
+                        {channel.type === 'private' ? (
+                          <Lock fontSize="small" />
+                        ) : (
+                          <Message fontSize="small" />
+                        )}
                       </ListItemIcon>
                       <ListItemText 
                         primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" component="span">
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                            <Typography 
+                              variant="body2" 
+                              component="span"
+                              sx={{
+                                fontWeight: unreadCount > 0 ? 600 : 400,
+                                color: isSelected ? 'primary.dark' : 'text.primary',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                flex: 1,
+                              }}
+                            >
                               {channel.name}
                             </Typography>
                             {unreadCount > 0 && (
-                              <Badge 
-                                badgeContent={unreadCount > 99 ? '99+' : unreadCount} 
-                                color="error"
-                                sx={{ ml: 1 }}
-                              />
+                              <Box
+                                sx={{
+                                  minWidth: unreadCount > 99 ? 36 : 24,
+                                  height: 20,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: 'error.main',
+                                  color: 'error.contrastText',
+                                  borderRadius: '10px',
+                                  px: unreadCount > 99 ? 1 : 0.75,
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600,
+                                  lineHeight: 1,
+                                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
+                                  animation: unreadCount > 0 ? 'pulse 2s ease-in-out infinite' : 'none',
+                                  '@keyframes pulse': {
+                                    '0%, 100%': {
+                                      opacity: 1,
+                                    },
+                                    '50%': {
+                                      opacity: 0.8,
+                                    },
+                                  },
+                                }}
+                              >
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </Box>
                             )}
                           </Box>
                         }
+                        sx={{ 
+                          m: 0,
+                          '& .MuiListItemText-primary': {
+                            overflow: 'visible',
+                          }
+                        }}
                       />
                     </ListItemButton>
                   </ListItem>
