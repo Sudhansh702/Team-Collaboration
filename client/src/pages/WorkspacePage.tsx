@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import {
   Box,
   Drawer,
@@ -25,7 +26,8 @@ import {
   Select,
   MenuItem,
   Tabs,
-  Tab
+  Tab,
+  Badge
 } from '@mui/material';
 import {
   Settings,
@@ -58,6 +60,7 @@ const WorkspacePage = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [createChannelDialogOpen, setCreateChannelDialogOpen] = useState(false);
   const [channelFormData, setChannelFormData] = useState({
     name: '',
@@ -75,16 +78,52 @@ const WorkspacePage = () => {
     }
   }, [teamId]);
 
+  // Socket.io setup for real-time unread count updates
+  useEffect(() => {
+    if (!teamId || !user) return;
+
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const newSocket = io(socketUrl, {
+      transports: ['websocket', 'polling']
+    });
+
+    newSocket.on('connect', () => {
+      console.log('Socket connected in WorkspacePage');
+      // Join team room for unread count updates
+      newSocket.emit('join-team', teamId);
+    });
+
+    // Listen for new messages to update unread counts
+    newSocket.on('new-message', async (message: any) => {
+      // Only update if message is not from current user and not in currently selected channel
+      if (message.senderId?._id !== user._id && message.channelId?._id !== selectedChannel?._id) {
+        try {
+          // Refresh unread counts
+          const counts = await channelService.getUnreadCountsForTeam(teamId!);
+          setUnreadCounts(counts);
+        } catch (err) {
+          console.error('Failed to update unread counts:', err);
+        }
+      }
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [teamId, user, selectedChannel]);
+
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [teamData, channelsData] = await Promise.all([
+      const [teamData, channelsData, unreadCountsData] = await Promise.all([
         teamService.getTeamById(teamId!),
-        channelService.getTeamChannels(teamId!)
+        channelService.getTeamChannels(teamId!),
+        channelService.getUnreadCountsForTeam(teamId!)
       ]);
       setTeam(teamData);
       setChannels(channelsData);
+      setUnreadCounts(unreadCountsData);
       if (channelsData.length > 0 && !selectedChannel) {
         setSelectedChannel(channelsData[0]);
       }
@@ -262,19 +301,49 @@ const WorkspacePage = () => {
             </Box>
           ) : (
             <List>
-              {channels.map((channel) => (
-                <ListItem key={channel._id} disablePadding>
-                  <ListItemButton
-                    selected={selectedChannel?._id === channel._id}
-                    onClick={() => setSelectedChannel(channel)}
-                  >
-                    <ListItemIcon>
-                      {channel.type === 'private' ? <Lock fontSize="small" /> : <Message fontSize="small" />}
-                    </ListItemIcon>
-                    <ListItemText primary={channel.name} />
-                  </ListItemButton>
-                </ListItem>
-              ))}
+              {channels.map((channel) => {
+                const unreadCount = unreadCounts[channel._id] || 0;
+                return (
+                  <ListItem key={channel._id} disablePadding>
+                    <ListItemButton
+                      selected={selectedChannel?._id === channel._id}
+                      onClick={async () => {
+                        setSelectedChannel(channel);
+                        // Mark channel as read when selecting
+                        if (unreadCount > 0) {
+                          try {
+                            await channelService.markChannelAsRead(channel._id);
+                            // Update local unread counts
+                            setUnreadCounts(prev => ({ ...prev, [channel._id]: 0 }));
+                          } catch (err) {
+                            console.error('Failed to mark channel as read:', err);
+                          }
+                        }
+                      }}
+                    >
+                      <ListItemIcon>
+                        {channel.type === 'private' ? <Lock fontSize="small" /> : <Message fontSize="small" />}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Typography variant="body2" component="span">
+                              {channel.name}
+                            </Typography>
+                            {unreadCount > 0 && (
+                              <Badge 
+                                badgeContent={unreadCount > 99 ? '99+' : unreadCount} 
+                                color="error"
+                                sx={{ ml: 1 }}
+                              />
+                            )}
+                          </Box>
+                        }
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
             </List>
           )}
         </Box>

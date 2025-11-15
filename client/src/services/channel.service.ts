@@ -63,6 +63,29 @@ class ChannelService {
     }
     throw new Error(response.message || 'Failed to remove member');
   }
+
+  async markChannelAsRead(channelId: string): Promise<void> {
+    const response = await apiService.post(`/channels/${channelId}/read`, {});
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to mark channel as read');
+    }
+  }
+
+  async getUnreadCount(channelId: string): Promise<number> {
+    const response = await apiService.get<{ unreadCount: number }>(`/channels/${channelId}/unread-count`);
+    if (response.success && response.data) {
+      return response.data.unreadCount;
+    }
+    throw new Error(response.message || 'Failed to get unread count');
+  }
+
+  async getUnreadCountsForTeam(teamId: string): Promise<Record<string, number>> {
+    const response = await apiService.get<{ unreadCounts: Record<string, number> }>(`/channels/team/${teamId}/unread-counts`);
+    if (response.success && response.data) {
+      return response.data.unreadCounts;
+    }
+    throw new Error(response.message || 'Failed to get unread counts');
+  }
 }
 
 export default new ChannelService();

@@ -8,6 +8,11 @@ import {
   addChannelMember,
   removeChannelMember
 } from '../controllers/channel.controller';
+import {
+  markChannelAsRead,
+  getUnreadCount,
+  getUnreadCountsForTeam
+} from '../controllers/channelRead.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -24,6 +29,11 @@ router.delete('/:id', deleteChannel);
 // Member management routes
 router.post('/:id/members', addChannelMember);
 router.delete('/:id/members/:userId', removeChannelMember);
+
+// Channel read routes
+router.post('/:channelId/read', markChannelAsRead);
+router.get('/:channelId/unread-count', getUnreadCount);
+router.get('/team/:teamId/unread-counts', getUnreadCountsForTeam);
 
 export default router;
 

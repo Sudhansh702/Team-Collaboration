@@ -80,7 +80,7 @@
 | ~~Dark Mode Toggle~~                 | ✅ **IMPLEMENTED**| ---      | ~~UI theme toggle for dark/light mode~~                                        | ~~MUI Theme~~                 | ---                 |
 | Mobile Responsiveness Improvements   | Partial        | High      | Better mobile UI/UX                                                            |                               | Medium              |
 | Message Pagination/Lazy Loading      | Not implemented| High      | Load messages in chunks                                                        | Backend pagination             | Medium              |
-| Unread Message Indicators            | Not implemented| High      | Show unread per channel                                                        | Backend tracking               | Medium              |
+| ~~Unread Message Indicators~~        | ✅ **IMPLEMENTED**| ---      | ~~Show unread per channel~~                                                    | ~~Backend tracking~~           | ---                 |
 | Online/Offline Status Indicators     | Not implemented| High      | Show user status                                                               | Socket.io presence             | Medium              |
 | ~~Caller Name API Integration~~     | ✅ **FIXED**   | ---      | ~~Show actual caller name, not "User"~~                                        | ~~User API endpoint~~          | ---                 |
 

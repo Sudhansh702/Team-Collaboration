@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { MessageService } from '../services/message.service';
+import { ChannelReadService } from '../services/channelRead.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export const createMessage = async (
@@ -81,6 +82,9 @@ export const getChannelMessages = async (
       limit,
       before
     );
+
+    // Mark channel as read when user fetches messages
+    await ChannelReadService.markChannelAsRead(userId, channelId);
 
     res.status(200).json({
       success: true,
