@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import User from '../models/User.model';
+import { StreamClient } from '@stream-io/node-sdk';
 
 export const register = async (
   req: Request,
@@ -379,6 +380,48 @@ export const getUserById = async (
     res.json({
       success: true,
       data: { user: userObj }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStreamToken = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const STREAM_API_KEY = process.env.STREAM_API_KEY;
+    const STREAM_API_SECRET = process.env.STREAM_API_SECRET;
+
+    if (!STREAM_API_KEY || !STREAM_API_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'Stream API credentials not configured'
+      });
+    }
+
+    const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
+
+    // Token expires in 1 hour
+    const expirationTime = Math.floor(Date.now() / 1000) + 3600;
+    const issuedAt = Math.floor(Date.now() / 1000) - 60;
+
+    const token = streamClient.createToken(userId, expirationTime, issuedAt);
+
+    res.json({
+      success: true,
+      data: { token }
     });
   } catch (error) {
     next(error);

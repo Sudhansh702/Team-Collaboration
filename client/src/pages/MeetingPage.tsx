@@ -7,28 +7,26 @@ import {
   Alert
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import callService from '../services/call.service';
 import meetingService from '../services/meeting.service';
+import { Meeting } from '../types';
+import { useStreamVideoClient, StreamCall, StreamTheme } from '@stream-io/video-react-sdk';
 import MeetingSetup from '../components/MeetingSetup';
 import MeetingRoom from '../components/MeetingRoom';
-import { Meeting } from '../types';
 
 const MeetingPage: React.FC = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const client = useStreamVideoClient();
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [call, setCall] = useState<any>(null);
 
   useEffect(() => {
     if (!meetingId || !user) return;
-
-    // Initialize socket connection
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
-    callService.initializeSocket(socketUrl);
 
     const loadMeeting = async () => {
       try {
@@ -47,21 +45,46 @@ const MeetingPage: React.FC = () => {
     loadMeeting();
   }, [meetingId, user]);
 
+  useEffect(() => {
+    if (!client || !meetingId || !user) return;
+
+    const initializeCall = async () => {
+      try {
+        // Create or get call using Stream.io
+        const streamCall = client.call('default', meetingId);
+        
+        // Get or create the call
+        await streamCall.getOrCreate({
+          data: {
+            custom: {
+              meetingId: meetingId,
+              title: meeting?.title || 'Team Meeting',
+            },
+          },
+        });
+
+        setCall(streamCall);
+      } catch (err: any) {
+        console.error('Error initializing call:', err);
+        setError(err.message || 'Failed to initialize call');
+      }
+    };
+
+    initializeCall();
+  }, [client, meetingId, user, meeting]);
+
   const handleJoin = async () => {
-    if (!meetingId || !user || !meeting) return;
+    if (!call) return;
 
     try {
       setJoining(true);
       setError(null);
 
       // Join meeting via API
-      await meetingService.joinMeeting(meetingId);
-
-      // Get participants list
-      const participants = meeting.participants || [];
+      await meetingService.joinMeeting(meetingId!);
       
-      // Join meeting via call service
-      await callService.joinMeeting(meetingId, user._id, participants, 'video');
+      // Join the Stream call
+      await call.join();
 
       setIsSetupComplete(true);
     } catch (err: any) {
@@ -72,19 +95,21 @@ const MeetingPage: React.FC = () => {
     }
   };
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
+    if (call) {
+      await call.leave();
+    }
     if (meetingId && user) {
-      callService.leaveMeeting(meetingId, user._id);
       meetingService.leaveMeeting(meetingId).catch(console.error);
     }
-    navigate(-1); // Go back to previous page
+    navigate(-1);
   };
 
   const handleCancel = () => {
-    navigate(-1); // Go back to previous page
+    navigate(-1);
   };
 
-  if (loading) {
+  if (loading || !call) {
     return (
       <Box
         sx={{
@@ -182,23 +207,24 @@ const MeetingPage: React.FC = () => {
     );
   }
 
-  if (!isSetupComplete) {
-    return (
-      <MeetingSetup
-        onJoin={handleJoin}
-        onCancel={handleCancel}
-      />
-    );
-  }
-
   return (
-    <MeetingRoom
-      meetingId={meetingId!}
-      participants={meeting.participants}
-      onLeave={handleLeave}
-    />
+    <StreamCall call={call}>
+      <StreamTheme>
+        {!isSetupComplete ? (
+          <MeetingSetup
+            onJoin={handleJoin}
+            onCancel={handleCancel}
+            joining={joining}
+          />
+        ) : (
+          <MeetingRoom
+            meetingId={meetingId!}
+            onLeave={handleLeave}
+          />
+        )}
+      </StreamTheme>
+    </StreamCall>
   );
 };
 
 export default MeetingPage;
-

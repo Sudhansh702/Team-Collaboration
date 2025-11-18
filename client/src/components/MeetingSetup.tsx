@@ -1,170 +1,98 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Button,
   Typography,
   Checkbox,
   FormControlLabel,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Card,
   CardContent,
   Alert as MuiAlert
 } from '@mui/material';
 import { VideocamOff } from '@mui/icons-material';
+import {
+  DeviceSettings,
+  VideoPreview,
+  useCall,
+  useCallStateHooks,
+} from '@stream-io/video-react-sdk';
 
 interface MeetingSetupProps {
   onJoin: () => void;
   onCancel?: () => void;
+  joining?: boolean;
 }
 
-const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
+const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel, joining = false }) => {
   const [isMicCamToggled, setIsMicCamToggled] = useState(false);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
-  const [availableMicrophones, setAvailableMicrophones] = useState<MediaDeviceInfo[]>([]);
-  const [selectedCamera, setSelectedCamera] = useState<string>('');
-  const [selectedMicrophone, setSelectedMicrophone] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const call = useCall();
+  const { useCallEndedAt, useCallStartsAt } = useCallStateHooks();
+  const callStartsAt = useCallStartsAt();
+  const callEndedAt = useCallEndedAt();
+
+  if (!call) {
+    throw new Error('useCall must be used within a StreamCall component.');
+  }
+
+  const callTimeNotArrived = callStartsAt && new Date(callStartsAt) > new Date();
+  const callHasEnded = !!callEndedAt;
 
   useEffect(() => {
-    // Get available devices
-    const getDevices = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(device => device.kind === 'videoinput');
-        const microphones = devices.filter(device => device.kind === 'audioinput');
-        
-        setAvailableCameras(cameras);
-        setAvailableMicrophones(microphones);
-        
-        if (cameras.length > 0) {
-          setSelectedCamera(cameras[0].deviceId);
-        }
-        if (microphones.length > 0) {
-          setSelectedMicrophone(microphones[0].deviceId);
-        }
-      } catch (err) {
-        console.error('Error getting devices:', err);
-      }
-    };
-
-    // Get user media first to request permissions
-    const requestMedia = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: true
-        });
-        
-        setLocalStream(stream);
-        
-        // Get devices after permission is granted
-        await getDevices();
-        
-        // Update video preview
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err: any) {
-        console.error('Error requesting media:', err);
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setError('Camera/microphone permission denied. Please allow access in your browser settings.');
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          setError('No camera or microphone found. Please connect a camera/microphone.');
-        } else {
-          setError('Failed to access camera/microphone. Please check your browser permissions.');
-        }
-      }
-    };
-
-    requestMedia();
-
-    return () => {
-      // Cleanup stream on unmount
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Update video preview when stream changes
-    if (videoRef.current && localStream) {
-      videoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    // Update stream when devices change
-    const updateStream = async () => {
-      if (!localStream) return;
-
-      try {
-        const constraints: MediaStreamConstraints = {
-          audio: isMicCamToggled ? false : {
-            deviceId: selectedMicrophone ? { exact: selectedMicrophone } : undefined
-          },
-          video: isMicCamToggled ? false : {
-            deviceId: selectedCamera ? { exact: selectedCamera } : undefined
-          }
-        };
-
-        // Get new stream with selected devices
-        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        // Stop old tracks
-        localStream.getTracks().forEach(track => track.stop());
-        
-        setLocalStream(newStream);
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = newStream;
-        }
-      } catch (err) {
-        console.error('Error updating stream:', err);
-      }
-    };
-
-    updateStream();
-  }, [selectedCamera, selectedMicrophone]);
-
-  const handleMicCamToggle = async (checked: boolean) => {
-    setIsMicCamToggled(checked);
-    
-    if (localStream) {
-      if (checked) {
-        // Disable mic and camera
-        localStream.getAudioTracks().forEach(track => {
-          track.enabled = false;
-        });
-        localStream.getVideoTracks().forEach(track => {
-          track.enabled = false;
-        });
-      } else {
-        // Enable mic and camera
-        localStream.getAudioTracks().forEach(track => {
-          track.enabled = true;
-        });
-        localStream.getVideoTracks().forEach(track => {
-          track.enabled = true;
-        });
-      }
-    }
-  };
-
-  const handleJoin = () => {
-    // Store the stream in callService for use in meeting
-    if (localStream) {
-      // The stream is already set, just proceed
-      onJoin();
+    if (isMicCamToggled) {
+      call.camera.disable();
+      call.microphone.disable();
     } else {
-      setError('Please allow camera/microphone access to join the meeting.');
+      call.camera.enable();
+      call.microphone.enable();
     }
-  };
+  }, [isMicCamToggled, call]);
+
+  if (callTimeNotArrived) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          p: 3
+        }}
+      >
+        <MuiAlert severity="info" sx={{ maxWidth: 600 }}>
+          <Typography variant="h6" gutterBottom>
+            Meeting Not Started
+          </Typography>
+          <Typography>
+            Your meeting has not started yet. It is scheduled for{' '}
+            {callStartsAt.toLocaleString()}
+          </Typography>
+        </MuiAlert>
+      </Box>
+    );
+  }
+
+  if (callHasEnded) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          p: 3
+        }}
+      >
+        <MuiAlert severity="warning" sx={{ maxWidth: 600 }}>
+          <Typography variant="h6" gutterBottom>
+            Call Ended
+          </Typography>
+          <Typography>The call has been ended by the host.</Typography>
+        </MuiAlert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -191,7 +119,7 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
             </MuiAlert>
           )}
 
-          {/* Video Preview */}
+          {/* Video Preview using Stream.io */}
           <Box
             sx={{
               width: '100%',
@@ -205,19 +133,8 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
               aspectRatio: '16/9'
             }}
           >
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                transform: 'scaleX(-1)' // Mirror effect
-              }}
-            />
-            {(!localStream || isMicCamToggled) && (
+            <VideoPreview />
+            {isMicCamToggled && (
               <Box
                 sx={{
                   position: 'absolute',
@@ -233,52 +150,16 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
                 }}
               >
                 <Box sx={{ textAlign: 'center' }}>
-                  {isMicCamToggled ? (
-                    <>
-                      <VideocamOff sx={{ fontSize: 48, mb: 1 }} />
-                      <Typography>Camera Off</Typography>
-                    </>
-                  ) : (
-                    <Typography>Loading camera...</Typography>
-                  )}
+                  <VideocamOff sx={{ fontSize: 48, mb: 1 }} />
+                  <Typography>Camera Off</Typography>
                 </Box>
               </Box>
             )}
           </Box>
 
-          {/* Device Selection */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel>Camera</InputLabel>
-              <Select
-                value={selectedCamera}
-                label="Camera"
-                onChange={(e) => setSelectedCamera(e.target.value)}
-                disabled={isMicCamToggled || availableCameras.length === 0}
-              >
-                {availableCameras.map((camera) => (
-                  <MenuItem key={camera.deviceId} value={camera.deviceId}>
-                    {camera.label || `Camera ${camera.deviceId.slice(0, 8)}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>Microphone</InputLabel>
-              <Select
-                value={selectedMicrophone}
-                label="Microphone"
-                onChange={(e) => setSelectedMicrophone(e.target.value)}
-                disabled={isMicCamToggled || availableMicrophones.length === 0}
-              >
-                {availableMicrophones.map((mic) => (
-                  <MenuItem key={mic.deviceId} value={mic.deviceId}>
-                    {mic.label || `Microphone ${mic.deviceId.slice(0, 8)}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          {/* Device Settings */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3, alignItems: 'center' }}>
+            <DeviceSettings />
           </Box>
 
           {/* Join with mic/camera off */}
@@ -286,11 +167,11 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
             control={
               <Checkbox
                 checked={isMicCamToggled}
-                onChange={(e) => handleMicCamToggle(e.target.checked)}
+                onChange={(e) => setIsMicCamToggled(e.target.checked)}
               />
             }
             label="Join with microphone and camera off"
-            sx={{ mb: 3 }}
+            sx={{ mb: 3, justifyContent: 'center' }}
           />
 
           {/* Action Buttons */}
@@ -299,6 +180,7 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
               <Button
                 variant="outlined"
                 onClick={onCancel}
+                disabled={joining}
                 sx={{ minWidth: 120 }}
               >
                 Cancel
@@ -307,11 +189,11 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
             <Button
               variant="contained"
               color="primary"
-              onClick={handleJoin}
-              disabled={!localStream && !isMicCamToggled}
+              onClick={onJoin}
+              disabled={joining}
               sx={{ minWidth: 120 }}
             >
-              Join Meeting
+              {joining ? 'Joining...' : 'Join Meeting'}
             </Button>
           </Box>
         </CardContent>
@@ -321,4 +203,3 @@ const MeetingSetup: React.FC<MeetingSetupProps> = ({ onJoin, onCancel }) => {
 };
 
 export default MeetingSetup;
-

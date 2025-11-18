@@ -6,7 +6,8 @@ import {
   getCurrentUser,
   updateProfile,
   refreshToken,
-  getUserById
+  getUserById,
+  getStreamToken
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -18,6 +19,7 @@ router.post('/logout', authenticate, logout);
 router.post('/refresh-token', refreshToken);
 router.get('/me', authenticate, getCurrentUser);
 router.put('/profile', authenticate, updateProfile);
+router.get('/stream-token', authenticate, getStreamToken);
 // Parameter routes should come last to avoid conflicts with literal routes
 router.get('/:id', authenticate, getUserById);
 
