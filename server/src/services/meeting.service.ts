@@ -86,7 +86,7 @@ export class MeetingService {
       .populate('organizerId', 'username email avatar')
       .populate('participants', 'username email avatar')
       .populate('teamId', 'name')
-      .sort({ startTime: 1 });
+      .sort({ startTime: -1 });
 
     return meetings;
   }

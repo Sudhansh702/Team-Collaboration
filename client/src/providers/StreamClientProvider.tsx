@@ -56,9 +56,10 @@ const StreamClientProvider = ({ children }: StreamClientProviderProps) => {
           alignItems: 'center',
           justifyContent: 'center',
           minHeight: '100vh',
+          bgcolor: 'background.default'
         }}
       >
-        <CircularProgress />
+        <CircularProgress sx={{ color: 'primary.main' }} />
       </Box>
     );
   }

@@ -252,9 +252,6 @@ const WorkspacePage = () => {
         }}
       >
         <CircularProgress size={48} sx={{ color: 'primary.main' }} />
-        <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
-          Loading workspace...
-        </Typography>
       </Box>
     );
   }
@@ -395,22 +392,38 @@ const WorkspacePage = () => {
                         px: 1.5,
                         transition: 'all 0.2s ease',
                         '&.Mui-selected': {
-                          backgroundColor: 'primary.light',
-                          color: 'primary.dark',
+                          backgroundColor: 'primary.main',
+                          color: 'primary.contrastText',
+                          fontWeight: 600,
                           '&:hover': {
-                            backgroundColor: 'primary.light',
+                            backgroundColor: 'primary.dark',
                           },
                           '& .MuiListItemIcon-root': {
-                            color: 'primary.dark',
+                            color: 'primary.contrastText',
+                          },
+                          '& .MuiTypography-root': {
+                            color: 'primary.contrastText',
+                            fontWeight: 600,
                           },
                         },
                         '&:hover': {
-                          backgroundColor: 'action.hover',
+                          backgroundColor: isSelected ? 'primary.dark' : 'action.hover',
                           transform: 'translateX(2px)',
+                          '& .MuiListItemIcon-root': {
+                            color: isSelected ? 'primary.contrastText' : 'primary.main',
+                          },
+                          '& .MuiTypography-root': {
+                            color: isSelected ? 'primary.contrastText' : 'primary.main',
+                            fontWeight: 600,
+                          },
                         },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 36, color: isSelected ? 'primary.dark' : 'text.secondary' }}>
+                      <ListItemIcon sx={{ 
+                        minWidth: 36, 
+                        color: isSelected ? 'primary.contrastText' : 'text.secondary',
+                        transition: 'color 0.2s ease'
+                      }}>
                         {channel.type === 'private' ? (
                           <Lock fontSize="small" />
                         ) : (
@@ -424,12 +437,13 @@ const WorkspacePage = () => {
                               variant="body2" 
                               component="span"
                               sx={{
-                                fontWeight: unreadCount > 0 ? 600 : 400,
-                                color: isSelected ? 'primary.dark' : 'text.primary',
+                                fontWeight: isSelected ? 600 : (unreadCount > 0 ? 600 : 400),
+                                color: isSelected ? 'primary.contrastText' : 'text.primary',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
                                 flex: 1,
+                                transition: 'all 0.2s ease',
                               }}
                             >
                               {channel.name}
@@ -685,16 +699,24 @@ const WorkspacePage = () => {
                   minHeight: 48,
                   fontSize: '0.95rem',
                   color: 'text.secondary',
+                  px: 2,
                   '&.Mui-selected': {
                     color: 'primary.main',
                     fontWeight: 600
                   },
                   '&:hover': {
                     color: 'primary.main',
-                    bgcolor: 'primary.light',
-                    borderRadius: 1
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    '& .MuiSvgIcon-root': {
+                      color: 'primary.main'
+                    }
                   },
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  '& .MuiSvgIcon-root': {
+                    transition: 'color 0.2s ease'
+                  }
                 },
                 '& .MuiTabs-indicator': {
                   height: 3,
@@ -727,7 +749,7 @@ const WorkspacePage = () => {
             </Tabs>
 
             {/* Content based on selected tab */}
-            <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', pt: 0 }}>
+            <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', pt: 0, minHeight: 0 }}>
               {workspaceTab === 'messages' ? (
                 selectedChannel ? (
                   <MessagesPanel

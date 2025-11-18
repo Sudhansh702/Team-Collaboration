@@ -136,12 +136,18 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
       filtered = filtered.filter(task => task.priority === priorityFilter);
     }
 
-    // Sort by priority and due date
+    // Sort by creation date (latest first), then priority, then due date
     filtered.sort((a, b) => {
+      // First sort by creation date (descending - latest first)
+      const createdAtDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (createdAtDiff !== 0) return createdAtDiff;
+      
+      // Then by priority (high priority first)
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       if (priorityDiff !== 0) return priorityDiff;
       
+      // Finally by due date (earliest due date first)
       if (a.dueDate && b.dueDate) {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }
@@ -198,8 +204,8 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
   const stats = getTaskStats();
 
   return (
-    <Box>
-      <Paper sx={{ p: 2, mb: 2 }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+      <Paper sx={{ p: 2, mb: 2, flexShrink: 0 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TaskIcon />
@@ -293,21 +299,21 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
 
       {/* Error */}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+        <Alert severity="error" sx={{ mb: 2, flexShrink: 0 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
 
       {/* Loading */}
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4, flexGrow: 1 }}>
+          <CircularProgress sx={{ color: 'primary.main' }} />
         </Box>
       ) : (
         <>
           {/* Tasks List */}
           {filteredTasks.length === 0 ? (
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Paper sx={{ p: 4, textAlign: 'center', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <TaskIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
                 {tasks.length === 0 ? 'No tasks yet' : 'No tasks match your filters'}
@@ -329,7 +335,7 @@ const TaskList: React.FC<TaskListProps> = ({ team, channelId }) => {
               )}
             </Paper>
           ) : (
-            <Box>
+            <Box sx={{ flexGrow: 1, overflow: 'auto', pb: 2 }}>
               {filteredTasks.map((task) => (
                 <TaskCard
                   key={task._id}

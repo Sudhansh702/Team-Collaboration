@@ -124,7 +124,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         InputProps={{
           startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
           endAdornment: loading ? (
-            <CircularProgress size={20} />
+            <CircularProgress size={20} sx={{ color: 'primary.main' }} />
           ) : query ? (
             <IconButton size="small" onClick={handleClose}>
               <CloseIcon fontSize="small" />

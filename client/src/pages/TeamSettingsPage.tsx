@@ -23,7 +23,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip
+  Chip,
+  CircularProgress
 } from '@mui/material';
 import { Delete, PersonAdd } from '@mui/icons-material';
 import teamService from '../services/team.service';
@@ -177,8 +178,8 @@ const TeamSettingsPage = () => {
   if (loading) {
     return (
       <Container maxWidth="md">
-        <Box sx={{ py: 4 }}>
-          <Typography>Loading...</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+          <CircularProgress sx={{ color: 'primary.main' }} />
         </Box>
       </Container>
     );

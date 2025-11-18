@@ -278,7 +278,7 @@ const NotificationCenter: React.FC = () => {
         <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <CircularProgress size={24} />
+              <CircularProgress size={24} sx={{ color: 'primary.main' }} />
             </Box>
           ) : filteredNotifications.length === 0 ? (
             <Box sx={{ p: 3, textAlign: 'center' }}>

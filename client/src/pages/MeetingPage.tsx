@@ -116,10 +116,11 @@ const MeetingPage: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '100vh'
+          minHeight: '100vh',
+          bgcolor: 'background.default'
         }}
       >
-        <CircularProgress />
+        <CircularProgress sx={{ color: 'primary.main' }} />
       </Box>
     );
   }

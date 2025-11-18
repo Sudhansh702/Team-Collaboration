@@ -13,7 +13,8 @@ import {
   ListItemText,
   Divider,
   LinearProgress,
-  Link
+  Link,
+  CircularProgress
 } from '@mui/material';
 import {
   Send,
@@ -497,7 +498,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <Typography>Loading messages...</Typography>
+        <CircularProgress sx={{ color: 'primary.main' }} />
       </Box>
     );
   }

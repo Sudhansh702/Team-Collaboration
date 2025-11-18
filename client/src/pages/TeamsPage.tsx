@@ -11,13 +11,15 @@ import {
   CardActions,
   IconButton,
   Alert,
-  Toolbar
+  Toolbar,
+  CircularProgress
 } from '@mui/material';
 import { Add, Settings } from '@mui/icons-material';
 import teamService from '../services/team.service';
 import { Team } from '../types';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
+import NotificationCenter from '../components/NotificationCenter';
 import { ExitToApp } from '@mui/icons-material';
 import { AppBar } from '@mui/material';
 
@@ -127,6 +129,7 @@ const TeamsPage = () => {
             TeamConnect
           </Typography>
           <ThemeToggle />
+          <NotificationCenter />
           <Button variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout} sx={{ ml: 2 }}>
             Logout
           </Button>
@@ -159,7 +162,9 @@ const TeamsPage = () => {
           )}
 
           {loading ? (
-            <Typography>Loading teams...</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+              <CircularProgress sx={{ color: 'primary.main' }} />
+            </Box>
           ) : teams.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>

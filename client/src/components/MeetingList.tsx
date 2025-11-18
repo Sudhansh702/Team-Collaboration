@@ -78,7 +78,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
     newSocket.on('meeting-created', (meeting: Meeting) => {
       if (meeting.teamId === team._id) {
         setMeetings((prev) => [...prev, meeting].sort((a, b) => 
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
         ));
       }
     });
@@ -87,7 +87,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
       if (meeting.teamId === team._id) {
         setMeetings((prev) =>
           prev.map((m) => (m._id === meeting._id ? meeting : m)).sort((a, b) => 
-            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
           )
         );
       }
@@ -140,9 +140,9 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
       filtered = filtered.filter(meeting => meeting.status === statusFilter);
     }
 
-    // Sort by start time
+    // Sort by start time (descending - latest first)
     filtered.sort((a, b) => {
-      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+      return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
     });
 
     setFilteredMeetings(filtered);
@@ -281,8 +281,8 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
   };
 
   return (
-    <Box>
-      <Paper sx={{ p: 2, mb: 2 }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+      <Paper sx={{ p: 2, mb: 2, flexShrink: 0 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <EventIcon />
@@ -339,21 +339,21 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
 
       {/* Error */}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+        <Alert severity="error" sx={{ mb: 2, flexShrink: 0 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
 
       {/* Loading */}
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4, flexGrow: 1 }}>
+          <CircularProgress sx={{ color: 'primary.main' }} />
         </Box>
       ) : (
         <>
           {/* Meetings List */}
           {filteredMeetings.length === 0 ? (
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Paper sx={{ p: 4, textAlign: 'center', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <EventIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
                 {meetings.length === 0 ? 'No meetings yet' : 'No meetings match your filters'}
@@ -375,7 +375,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ team }) => {
               )}
             </Paper>
           ) : (
-            <Box>
+            <Box sx={{ flexGrow: 1, overflow: 'auto', pb: 2 }}>
               {filteredMeetings.map((meeting) => (
                 <Card key={meeting._id} sx={{ mb: 2 }}>
                   <CardContent>
