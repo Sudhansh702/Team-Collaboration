@@ -1,155 +1,155 @@
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 
-// Color palette based on Deisgn.json
+// Color palette based on GitLab design system
 const lightColors = {
-  // Base surface: very light warm white
-  baseSurface: '#FEFCFB',
+  // Base surface: GitLab light background
+  baseSurface: '#FAFAFA',
   
-  // Primary: cool lavender / pastel purple
+  // Primary: GitLab orange/red (#FC6D26 / #E24329)
   primary: {
-    main: '#B5A7E8', // Cool lavender
-    light: '#D4CAF0',
-    dark: '#8B7BC4',
+    main: '#FC6D26', // GitLab orange
+    light: '#FF8A4C',
+    dark: '#E24329', // GitLab red
     contrastText: '#FFFFFF',
   },
   
-  // Secondary: pale blues + neutral grays
+  // Secondary: GitLab blue
   secondary: {
-    main: '#A8C5E0', // Pale blue
-    light: '#C5D9ED',
-    dark: '#7A9FC4',
+    main: '#428BCA', // GitLab blue
+    light: '#5BA3D8',
+    dark: '#2E6DA4',
     contrastText: '#FFFFFF',
   },
   
-  // Accent: soft but saturated brand color (used sparingly)
+  // Accent: GitLab purple (used sparingly)
   accent: {
-    main: '#9B7EDE', // Soft but saturated purple
-    light: '#B8A5E8',
-    dark: '#7A5FB8',
+    main: '#6B4C93', // GitLab purple
+    light: '#8B6FAF',
+    dark: '#4D3570',
     contrastText: '#FFFFFF',
   },
   
-  // Semantic colors
+  // Semantic colors (GitLab style)
   success: {
-    main: '#A8D5BA', // Soft green
-    light: '#C5E5D1',
-    dark: '#7AB896',
-    contrastText: '#1F4E2F',
+    main: '#38A169', // GitLab green
+    light: '#48BB78',
+    dark: '#2F855A',
+    contrastText: '#FFFFFF',
   },
   warning: {
-    main: '#F5C2A7', // Peach/orange
-    light: '#F8D4C0',
-    dark: '#E89A7A',
-    contrastText: '#6B3E1F',
+    main: '#ED8936', // GitLab orange/warning
+    light: '#F6AD55',
+    dark: '#DD6B20',
+    contrastText: '#FFFFFF',
   },
   error: {
-    main: '#F5A5A5', // Soft red
-    light: '#F8C0C0',
-    dark: '#E87A7A',
-    contrastText: '#6B1F1F',
+    main: '#E53E3E', // GitLab red/error
+    light: '#FC8181',
+    dark: '#C53030',
+    contrastText: '#FFFFFF',
   },
   
-  // Neutral grays
+  // Neutral grays (GitLab style)
   gray: {
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-    400: '#BDBDBD',
-    500: '#9E9E9E',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
+    50: '#F7F8FA',
+    100: '#EBECF0',
+    200: '#DEE0E4',
+    300: '#C7CBD1',
+    400: '#9CA3AF',
+    500: '#6B7280',
+    600: '#4B5563',
+    700: '#374151',
+    800: '#1F2937',
+    900: '#111827',
   },
   
-  // Text colors
+  // Text colors (GitLab style)
   text: {
-    primary: '#1A1A1A', // Near-black
-    secondary: '#4A4A4A', // Dark gray
-    disabled: '#9E9E9E',
+    primary: '#1F2937', // Dark gray
+    secondary: '#6B7280', // Medium gray
+    disabled: '#9CA3AF',
   },
   
-  // Background colors
+  // Background colors (GitLab style)
   background: {
-    default: '#FEFCFB', // Very light warm white
+    default: '#FAFAFA', // Light gray background
     paper: '#FFFFFF',
   },
 };
 
 const darkColors = {
-  // Base surface: dark warm gray
-  baseSurface: '#1A1817',
+  // Base surface: GitLab dark background
+  baseSurface: '#1C1C1E',
   
-  // Primary: slightly brighter lavender for dark mode
+  // Primary: GitLab orange (brighter for dark mode)
   primary: {
-    main: '#C5B5F0', // Brighter lavender
-    light: '#D4CAF8',
-    dark: '#A895E0',
-    contrastText: '#1A1A1A',
+    main: '#FF8A4C', // Brighter GitLab orange
+    light: '#FFA366',
+    dark: '#FC6D26', // Standard GitLab orange
+    contrastText: '#FFFFFF',
   },
   
-  // Secondary: softer blues for dark mode
+  // Secondary: GitLab blue (brighter for dark mode)
   secondary: {
-    main: '#B8D5ED', // Softer blue
-    light: '#C5D9F5',
-    dark: '#9FC4E0',
-    contrastText: '#1A1A1A',
+    main: '#5BA3D8', // Brighter GitLab blue
+    light: '#7BB5E0',
+    dark: '#428BCA', // Standard GitLab blue
+    contrastText: '#FFFFFF',
   },
   
-  // Accent: brighter for dark mode
+  // Accent: GitLab purple (brighter for dark mode)
   accent: {
-    main: '#B8A5F0', // Brighter purple
-    light: '#C5B8F8',
-    dark: '#A895E8',
-    contrastText: '#1A1A1A',
+    main: '#8B6FAF', // Brighter GitLab purple
+    light: '#A589C4',
+    dark: '#6B4C93', // Standard GitLab purple
+    contrastText: '#FFFFFF',
   },
   
-  // Semantic colors (adjusted for dark mode)
+  // Semantic colors (GitLab style, adjusted for dark mode)
   success: {
-    main: '#B8D5C5', // Softer green
-    light: '#C5E5D1',
-    dark: '#9FC4B0',
-    contrastText: '#0F2E1F',
+    main: '#48BB78', // Brighter green
+    light: '#68D391',
+    dark: '#38A169', // Standard green
+    contrastText: '#FFFFFF',
   },
   warning: {
-    main: '#F5D4B8', // Softer peach
-    light: '#F8E0C5',
-    dark: '#E8B89A',
-    contrastText: '#4B2E0F',
+    main: '#F6AD55', // Brighter orange
+    light: '#FBD38D',
+    dark: '#ED8936', // Standard orange
+    contrastText: '#1A202C',
   },
   error: {
-    main: '#F5B8B8', // Softer red
-    light: '#F8C5C5',
-    dark: '#E89A9A',
-    contrastText: '#4B0F0F',
+    main: '#FC8181', // Brighter red
+    light: '#FEB2B2',
+    dark: '#E53E3E', // Standard red
+    contrastText: '#FFFFFF',
   },
   
-  // Neutral grays (inverted for dark mode)
+  // Neutral grays (GitLab dark mode)
   gray: {
-    50: '#212121',
-    100: '#2A2A2A',
-    200: '#333333',
-    300: '#424242',
-    400: '#616161',
-    500: '#757575',
-    600: '#9E9E9E',
-    700: '#BDBDBD',
-    800: '#E0E0E0',
-    900: '#F5F5F5',
+    50: '#1F2937',
+    100: '#374151',
+    200: '#4B5563',
+    300: '#6B7280',
+    400: '#9CA3AF',
+    500: '#C7CBD1',
+    600: '#DEE0E4',
+    700: '#EBECF0',
+    800: '#F7F8FA',
+    900: '#FFFFFF',
   },
   
-  // Text colors (lighter for dark mode)
+  // Text colors (GitLab dark mode)
   text: {
-    primary: '#F5F5F5', // Near-white
-    secondary: '#BDBDBD', // Light gray
-    disabled: '#757575',
+    primary: '#F7F8FA', // Near-white
+    secondary: '#C7CBD1', // Light gray
+    disabled: '#6B7280',
   },
   
-  // Background colors
+  // Background colors (GitLab dark mode)
   background: {
-    default: '#1A1817', // Dark warm gray
-    paper: '#242220',
+    default: '#1C1C1E', // Dark gray background
+    paper: '#2C2C2E',
   },
 };
 
@@ -289,7 +289,7 @@ const getComponentOverrides = (mode: 'light' | 'dark') => ({
     styleOverrides: {
       root: {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-        backgroundColor: mode === 'light' ? '#FFFFFF' : '#242220',
+        backgroundColor: mode === 'light' ? '#FFFFFF' : '#2C2C2E',
       },
     },
   },
