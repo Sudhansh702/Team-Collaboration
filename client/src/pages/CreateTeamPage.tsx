@@ -10,6 +10,11 @@ import {
   Alert
 } from '@mui/material';
 import teamService from '../services/team.service';
+import ThemeToggle from '../components/ThemeToggle';
+import { ExitToApp } from '@mui/icons-material';
+import { AppBar } from '@mui/material';
+import { Toolbar } from '@mui/material';
+import { useAuth } from '../context/AuthContext';
 
 const CreateTeamPage = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +24,12 @@ const CreateTeamPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -52,60 +63,86 @@ const CreateTeamPage = () => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ py: 4 }}>
-        <Paper elevation={2} sx={{ p: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Create New Team
+    <>
+      <AppBar position="static" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar>
+          <Typography
+            variant="h6"
+            color="text.primary"
+            sx={{ flexGrow: 1, cursor: 'pointer' }}
+            onClick={() => navigate('/')}
+            tabIndex={0}
+            role="button"
+            aria-label="Go to Home"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                navigate('/');
+              }
+            }}
+          >
+            TeamConnect
           </Typography>
+          <ThemeToggle />
+          <Button variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout} sx={{ ml: 2 }}>
+            Logout
+          </Button>
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="sm">
+        <Box sx={{ py: 4 }}>
+          <Paper elevation={2} sx={{ p: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Create New Team
+            </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-              {error}
-            </Alert>
-          )}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+                {error}
+              </Alert>
+            )}
 
-          <form onSubmit={handleSubmit}>
-            <TextField
-              label="Team Name"
-              name="name"
-              fullWidth
-              required
-              value={formData.name}
-              onChange={handleChange}
-              margin="normal"
-              autoFocus
-            />
-            <TextField
-              label="Description (Optional)"
-              name="description"
-              fullWidth
-              multiline
-              rows={3}
-              value={formData.description}
-              onChange={handleChange}
-              margin="normal"
-            />
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={loading}
-              >
-                {loading ? 'Creating...' : 'Create Team'}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/teams')}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-            </Box>
-          </form>
-        </Paper>
-      </Box>
-    </Container>
+            <form onSubmit={handleSubmit}>
+              <TextField
+                label="Team Name"
+                name="name"
+                fullWidth
+                required
+                value={formData.name}
+                onChange={handleChange}
+                margin="normal"
+                autoFocus
+              />
+              <TextField
+                label="Description (Optional)"
+                name="description"
+                fullWidth
+                multiline
+                rows={3}
+                value={formData.description}
+                onChange={handleChange}
+                margin="normal"
+              />
+              <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                >
+                  {loading ? 'Creating...' : 'Create Team'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/teams')}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </form>
+          </Paper>
+        </Box>
+      </Container>
+    </>
   );
 };
 

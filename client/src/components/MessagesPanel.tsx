@@ -503,11 +503,18 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: (theme) => theme.palette.background.default }}>
       {/* Messages List */}
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
+      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, bgcolor: (theme) => theme.palette.background.paper }}>
         {messages.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              textAlign: 'center',
+              mt: 4,
+            }}
+          >
             No messages yet. Start the conversation!
           </Typography>
         ) : (
@@ -518,21 +525,47 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                 sx={{
                   display: 'flex',
                   mb: 2,
-                  flexDirection: isOwnMessage(message) ? 'row-reverse' : 'row'
+                  flexDirection: isOwnMessage(message) ? 'row-reverse' : 'row',
                 }}
               >
                 <Avatar
                   src={getSenderAvatar(message)}
-                  sx={{ width: 40, height: 40, mr: isOwnMessage(message) ? 0 : 1, ml: isOwnMessage(message) ? 1 : 0 }}
+                  sx={theme => ({
+                    width: 40,
+                    height: 40,
+                    mr: isOwnMessage(message) ? 0 : 1,
+                    ml: isOwnMessage(message) ? 1 : 0,
+                    bgcolor: isOwnMessage(message)
+                      ? theme.palette.primary.main
+                      : theme.palette.secondary.main,
+                    color: isOwnMessage(message)
+                      ? theme.palette.primary.contrastText
+                      : theme.palette.secondary.contrastText,
+                    fontWeight: 700,
+                  })}
                 >
                   {getSenderName(message).charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ maxWidth: '70%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                    <Typography variant="caption" fontWeight="bold" sx={{ mr: 1 }}>
+                    <Typography
+                      variant="caption"
+                      fontWeight="bold"
+                      sx={{
+                        mr: 1,
+                        color: (theme) =>
+                          isOwnMessage(message)
+                            ? theme.palette.primary.main
+                            : theme.palette.text.primary,
+                      }}
+                    >
                       {isOwnMessage(message) ? 'You' : getSenderName(message)}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ color: (theme) => theme.palette.text.secondary }}
+                    >
                       {formatTime(message.createdAt)}
                     </Typography>
                   </Box>
@@ -540,95 +573,117 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                     elevation={0}
                     sx={{
                       p: 1.5,
-                      bgcolor: isOwnMessage(message) ? 'primary.main' : (theme) => theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
-                      color: isOwnMessage(message) ? 'primary.contrastText' : 'text.primary',
-                      borderRadius: 2
+                      bgcolor: (theme) =>
+                        isOwnMessage(message)
+                          ? theme.palette.primary.main
+                          : theme.palette.mode === 'dark'
+                          ? theme.palette.grey[800]
+                          : theme.palette.background.paper,
+                      color: (theme) =>
+                        isOwnMessage(message)
+                          ? theme.palette.primary.contrastText
+                          : theme.palette.text.primary,
+                      borderRadius: 2,
                     }}
                   >
-                    <Typography variant="body2">{message.content}</Typography>
-                    
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: (theme) =>
+                          isOwnMessage(message)
+                            ? theme.palette.primary.contrastText
+                            : theme.palette.text.primary,
+                      }}
+                    >
+                      {message.content}
+                    </Typography>
+
                     {/* File/Image Display */}
                     {message.type === 'image' && message.fileUrl && (() => {
                       const imageUrl = getFileUrl(message.fileUrl, message.fileName);
-                      console.log('Rendering image:', {
-                        messageId: message._id,
-                        fileUrl: message.fileUrl,
-                        fileName: message.fileName,
-                        constructedUrl: imageUrl
-                      });
                       return (
-                        <Box sx={{ mt: 1, mb: 1 }}>
+                        <Box
+                          sx={{
+                            mt: 1,
+                            mb: 1,
+                            borderRadius: 1,
+                            overflow: 'hidden',
+                            bgcolor: (theme) =>
+                              isOwnMessage(message)
+                                ? theme.palette.primary.light
+                                : theme.palette.action.hover,
+                          }}
+                        >
                           <img
                             src={imageUrl}
                             alt={message.fileName || 'Image'}
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '400px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            objectFit: 'contain',
-                            display: 'block'
-                          }}
-                          onClick={() => window.open(getFileUrl(message.fileUrl, message.fileName), '_blank')}
-                          onError={(e) => {
-                            const constructedUrl = getFileUrl(message.fileUrl, message.fileName);
-                            console.error('Image load error:', {
-                              originalUrl: message.fileUrl,
-                              constructedUrl: constructedUrl,
-                              fileName: message.fileName,
-                              messageType: message.type,
-                              VITE_SOCKET_URL: import.meta.env.VITE_SOCKET_URL,
-                              VITE_API_URL: import.meta.env.VITE_API_URL
-                            });
-                            
-                            // Try alternative URL construction - use the actual stored fileUrl
-                            // The fileUrl stored in DB should be the full path like: /uploads/filename-timestamp-hash.ext
-                            const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
-                            const baseUrl = SOCKET_URL.replace(/\/$/, '');
-                            
-                            // If fileUrl is a full URL, extract the path part
-                            if (message.fileUrl && message.fileUrl.startsWith('http')) {
-                              const url = new URL(message.fileUrl);
-                              const path = url.pathname; // e.g., /uploads/filename-timestamp-hash.ext
-                              const fallbackUrl = `${baseUrl}${path}`;
-                              console.log('Trying fallback URL (from full URL):', fallbackUrl);
-                              (e.target as HTMLImageElement).src = fallbackUrl;
-                            } else if (message.fileUrl && message.fileUrl.startsWith('/uploads/')) {
-                              // If fileUrl is a path, use it directly
-                              const fallbackUrl = `${baseUrl}${message.fileUrl}`;
-                              console.log('Trying fallback URL (from path):', fallbackUrl);
-                              (e.target as HTMLImageElement).src = fallbackUrl;
-                            } else if (message.fileUrl) {
-                              // If fileUrl is just a filename
-                              const fallbackUrl = `${baseUrl}/uploads/${message.fileUrl}`;
-                              console.log('Trying fallback URL (from filename):', fallbackUrl);
-                              (e.target as HTMLImageElement).src = fallbackUrl;
-                            } else if (message.fileName) {
-                              // Last resort: use fileName
-                              const fallbackUrl = `${baseUrl}/uploads/${message.fileName}`;
-                              console.log('Trying fallback URL (from fileName):', fallbackUrl);
-                              (e.target as HTMLImageElement).src = fallbackUrl;
-                            } else {
-                              console.error('Cannot construct fallback URL - missing fileUrl and fileName');
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '400px',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              objectFit: 'contain',
+                              display: 'block',
+                              background: 'transparent',
+                            }}
+                            onClick={() =>
+                              window.open(getFileUrl(message.fileUrl, message.fileName), '_blank')
                             }
-                          }}
-                        />
-                        {message.fileName && (
-                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.8 }}>
-                            {message.fileName}
-                            {message.fileSize && ` (${formatFileSize(message.fileSize)})`}
-                          </Typography>
-                        )}
-                      </Box>
+                            onError={(e) => {
+                              // Theme colors not used here, just propagation
+                              // Fallback logic unchanged
+                              const SOCKET_URL =
+                                import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+                              const baseUrl = SOCKET_URL.replace(/\/$/, '');
+                              if (message.fileUrl && message.fileUrl.startsWith('http')) {
+                                const url = new URL(message.fileUrl);
+                                const path = url.pathname;
+                                const fallbackUrl = `${baseUrl}${path}`;
+                                (e.target as HTMLImageElement).src = fallbackUrl;
+                              } else if (message.fileUrl && message.fileUrl.startsWith('/uploads/')) {
+                                const fallbackUrl = `${baseUrl}${message.fileUrl}`;
+                                (e.target as HTMLImageElement).src = fallbackUrl;
+                              } else if (message.fileUrl) {
+                                const fallbackUrl = `${baseUrl}/uploads/${message.fileUrl}`;
+                                (e.target as HTMLImageElement).src = fallbackUrl;
+                              } else if (message.fileName) {
+                                const fallbackUrl = `${baseUrl}/uploads/${message.fileName}`;
+                                (e.target as HTMLImageElement).src = fallbackUrl;
+                              }
+                            }}
+                          />
+                          {message.fileName && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                mt: 0.5,
+                                opacity: 0.8,
+                                color: (theme) => theme.palette.text.secondary,
+                              }}
+                            >
+                              {message.fileName}
+                              {message.fileSize && ` (${formatFileSize(message.fileSize)})`}
+                            </Typography>
+                          )}
+                        </Box>
                       );
                     })()}
-                    
+
                     {message.type === 'file' && message.fileUrl && (
                       <Box sx={{ mt: 1, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <IconButton
                           size="small"
-                          onClick={() => handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')}
-                          sx={{ color: isOwnMessage(message) ? 'primary.contrastText' : 'primary.main' }}
+                          onClick={() =>
+                            handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')
+                          }
+                          sx={{
+                            color: (theme) =>
+                              isOwnMessage(message)
+                                ? theme.palette.primary.contrastText
+                                : theme.palette.primary.main,
+                            bgcolor: 'transparent',
+                          }}
                         >
                           {getFileIcon(message.type)}
                         </IconButton>
@@ -640,48 +695,85 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                               handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file');
                             }}
                             sx={{
-                              color: isOwnMessage(message) ? 'primary.contrastText' : 'primary.main',
+                              color: (theme) =>
+                                isOwnMessage(message)
+                                  ? theme.palette.primary.contrastText
+                                  : theme.palette.primary.main,
                               textDecoration: 'none',
-                              '&:hover': { textDecoration: 'underline' }
+                              '&:hover': {
+                                textDecoration: 'underline',
+                                color: (theme) =>
+                                  isOwnMessage(message)
+                                    ? theme.palette.secondary.light
+                                    : theme.palette.secondary.main,
+                              },
                             }}
                           >
                             {message.fileName || 'File'}
                           </Link>
                           {message.fileSize && (
-                            <Typography variant="caption" sx={{ display: 'block', opacity: 0.8 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                opacity: 0.8,
+                                color: (theme) => theme.palette.text.secondary,
+                              }}
+                            >
                               {formatFileSize(message.fileSize)}
                             </Typography>
                           )}
                         </Box>
                         <IconButton
                           size="small"
-                          onClick={() => handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')}
-                          sx={{ color: isOwnMessage(message) ? 'primary.contrastText' : 'primary.main' }}
+                          onClick={() =>
+                            handleDownloadFile(getFileUrl(message.fileUrl, message.fileName), message.fileName || 'file')
+                          }
+                          sx={{
+                            color: (theme) =>
+                              isOwnMessage(message)
+                                ? theme.palette.primary.contrastText
+                                : theme.palette.primary.main,
+                            bgcolor: 'transparent',
+                          }}
                         >
                           <Download fontSize="small" />
                         </IconButton>
                       </Box>
                     )}
-                    
+
                     {message.reactions && message.reactions.length > 0 && (
                       <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
                         {Object.entries(
-                          message.reactions.reduce((acc: { [key: string]: string[] }, reaction) => {
-                            const emoji = reaction.emoji;
-                            if (!acc[emoji]) acc[emoji] = [];
-                            const userId = typeof reaction.userId === 'object' ? (reaction.userId as User)._id : reaction.userId;
-                            if (!acc[emoji].includes(userId)) {
-                              acc[emoji].push(userId);
-                            }
-                            return acc;
-                          }, {})
+                          message.reactions.reduce(
+                            (acc: { [key: string]: string[] }, reaction) => {
+                              const emoji = reaction.emoji;
+                              if (!acc[emoji]) acc[emoji] = [];
+                              const userId =
+                                typeof reaction.userId === 'object'
+                                  ? (reaction.userId as User)._id
+                                  : reaction.userId;
+                              if (!acc[emoji].includes(userId)) {
+                                acc[emoji].push(userId);
+                              }
+                              return acc;
+                            },
+                            {},
+                          ),
                         ).map(([emoji, userIds]) => (
                           <Chip
                             key={emoji}
                             label={`${emoji} ${userIds.length}`}
                             size="small"
                             onClick={() => handleAddReaction(message._id, emoji)}
-                            sx={{ cursor: 'pointer' }}
+                            sx={{
+                              cursor: 'pointer',
+                              bgcolor: (theme) => theme.palette.action.selected,
+                              color: (theme) => theme.palette.text.primary,
+                              '&:hover': {
+                                bgcolor: (theme) => theme.palette.primary.light,
+                              },
+                            }}
                           />
                         ))}
                       </Box>
@@ -692,6 +784,11 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                       <IconButton
                         size="small"
                         onClick={(e) => handleMessageMenu(e, message)}
+                        sx={{
+                          color: (theme) => theme.palette.text.secondary,
+                          bgcolor: 'transparent',
+                          '&:hover': { bgcolor: (theme) => theme.palette.action.hover },
+                        }}
                       >
                         <MoreVert fontSize="small" />
                       </IconButton>
@@ -699,6 +796,11 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                     <IconButton
                       size="small"
                       onClick={() => handleAddReaction(message._id, '👍')}
+                      sx={{
+                        color: (theme) => theme.palette.success.main,
+                        bgcolor: 'transparent',
+                        '&:hover': { bgcolor: (theme) => theme.palette.action.hover },
+                      }}
                     >
                       <EmojiEmotions fontSize="small" />
                     </IconButton>
@@ -708,7 +810,14 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
             ))}
             <div ref={messagesEndRef} />
             {typingUsers.size > 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  fontStyle: 'italic',
+                  color: (theme) => theme.palette.text.secondary,
+                }}
+              >
                 {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
               </Typography>
             )}
@@ -717,8 +826,8 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
       </Box>
 
       {/* Message Input */}
-      <Divider />
-      <Box sx={{ p: 2 }}>
+      <Divider sx={{ bgcolor: (theme) => theme.palette.divider }} />
+      <Box sx={{ p: 2, bgcolor: (theme) => theme.palette.background.paper }}>
         {editingMessage ? (
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
@@ -729,11 +838,24 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
               onKeyPress={handleKeyPress}
               placeholder="Edit message..."
               autoFocus
+              sx={{
+                bgcolor: (theme) => theme.palette.background.default,
+                '& fieldset': { borderColor: (theme) => theme.palette.divider },
+              }}
+              InputProps={{
+                style: { color: 'inherit' }
+              }}
             />
             <IconButton onClick={handleUpdateMessage} color="primary">
               <Send />
             </IconButton>
-            <IconButton onClick={() => { setEditingMessage(null); setNewMessage(''); }} color="error">
+            <IconButton
+              onClick={() => {
+                setEditingMessage(null);
+                setNewMessage('');
+              }}
+              color="error"
+            >
               <Delete />
             </IconButton>
           </Box>
@@ -741,8 +863,21 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
           <Box>
             {uploading && (
               <Box sx={{ mb: 1 }}>
-                <LinearProgress variant="determinate" value={uploadProgress} />
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={uploadProgress}
+                  sx={{
+                    bgcolor: (theme) => theme.palette.action.disabledBackground,
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor: (theme) => theme.palette.primary.main,
+                    },
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
                   Uploading... {uploadProgress}%
                 </Typography>
               </Box>
