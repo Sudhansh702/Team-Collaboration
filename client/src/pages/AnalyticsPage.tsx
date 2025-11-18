@@ -171,10 +171,18 @@ const AnalyticsPage = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography
+          variant="h4"
+          component="h1"
+          gutterBottom
+          sx={{ color: (theme) => theme.palette.text.primary }}
+        >
           Analytics - {team.name}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{ color: (theme) => theme.palette.text.secondary }}
+        >
           Team activity and performance metrics
         </Typography>
       </Box>

@@ -509,10 +509,10 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
         {messages.length === 0 ? (
           <Typography
             variant="body2"
-            color="text.secondary"
             sx={{
               textAlign: 'center',
               mt: 4,
+              color: (theme) => theme.palette.text.secondary,
             }}
           >
             No messages yet. Start the conversation!
@@ -563,8 +563,10 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                     </Typography>
                     <Typography
                       variant="caption"
-                      color="text.secondary"
-                      sx={{ color: (theme) => theme.palette.text.secondary }}
+                      sx={{ 
+                        color: (theme) => theme.palette.text.secondary,
+                        opacity: 0.8,
+                      }}
                     >
                       {formatTime(message.createdAt)}
                     </Typography>
@@ -577,7 +579,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                         isOwnMessage(message)
                           ? theme.palette.primary.main
                           : theme.palette.mode === 'dark'
-                          ? theme.palette.grey[800]
+                          ? theme.palette.grey[200]
                           : theme.palette.background.paper,
                       color: (theme) =>
                         isOwnMessage(message)
@@ -593,6 +595,7 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                           isOwnMessage(message)
                             ? theme.palette.primary.contrastText
                             : theme.palette.text.primary,
+                        wordBreak: 'break-word',
                       }}
                     >
                       {message.content}
@@ -604,13 +607,17 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                       return (
                         <Box
                           sx={{
-                            mt: 1,
-                            mb: 1,
-                            borderRadius: 1,
+                            mt: 0,
+                            mb: 0,
+                            borderRadius: 0,
                             overflow: 'hidden',
                             bgcolor: (theme) =>
                               isOwnMessage(message)
-                                ? theme.palette.primary.light
+                                ? theme.palette.mode === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.1)'
+                                  : theme.palette.primary.light
+                                : theme.palette.mode === 'dark'
+                                ? 'rgba(255, 255, 255, 0.05)'
                                 : theme.palette.action.hover,
                           }}
                         >
@@ -652,20 +659,23 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                               }
                             }}
                           />
-                          {message.fileName && (
+                          {/* {message.fileName && (
                             <Typography
                               variant="caption"
                               sx={{
                                 display: 'block',
                                 mt: 0.5,
-                                opacity: 0.8,
-                                color: (theme) => theme.palette.text.secondary,
+                                opacity: 0.9,
+                                color: (theme) =>
+                                  isOwnMessage(message)
+                                    ? theme.palette.primary.contrastText
+                                    : theme.palette.text.secondary,
                               }}
                             >
                               {message.fileName}
                               {message.fileSize && ` (${formatFileSize(message.fileSize)})`}
                             </Typography>
-                          )}
+                          )} */}
                         </Box>
                       );
                     })()}
@@ -716,8 +726,11 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
                               variant="caption"
                               sx={{
                                 display: 'block',
-                                opacity: 0.8,
-                                color: (theme) => theme.palette.text.secondary,
+                                opacity: 0.9,
+                                color: (theme) =>
+                                  isOwnMessage(message)
+                                    ? theme.palette.primary.contrastText
+                                    : theme.palette.text.secondary,
                               }}
                             >
                               {formatFileSize(message.fileSize)}
@@ -812,10 +825,11 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
             {typingUsers.size > 0 && (
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
                   fontStyle: 'italic',
                   color: (theme) => theme.palette.text.secondary,
+                  opacity: 0.9,
+                  mt: 1,
                 }}
               >
                 {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
@@ -955,4 +969,3 @@ const MessagesPanel: React.FC<MessagesPanelProps> = ({ channelId, channelName, t
 };
 
 export default MessagesPanel;
-

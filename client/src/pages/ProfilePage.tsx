@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Container, Paper, TextField, Button, Typography, Box, Alert, Select, MenuItem, FormControl, InputLabel, SelectChangeEvent } from '@mui/material';
+import { Container, Paper, TextField, Button, Typography, Box, Alert, Select, MenuItem, FormControl, InputLabel, SelectChangeEvent, Toolbar, AppBar } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/auth.service';
+import ThemeToggle from '../components/ThemeToggle';
+import { ExitToApp } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [formData, setFormData] = useState<{
     username: string;
     avatar: string;
@@ -17,6 +20,13 @@ const ProfilePage = () => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (user) {
@@ -60,25 +70,25 @@ const ProfilePage = () => {
         status: formData.status,
         formDataKeys: Object.keys(formData)
       });
-      
+
       // Ensure all fields are included, even if empty
       const updateData = {
         username: formData.username || '',
         avatar: formData.avatar || '', // Always include avatar, even if empty
         status: formData.status || 'offline'
       };
-      
+
       console.log('Update data being sent:', {
         username: updateData.username || 'empty',
         avatar: updateData.avatar || 'empty',
         avatarIncluded: 'avatar' in updateData,
         status: updateData.status
       });
-      
+
       const updatedUser = await authService.updateProfile(updateData);
       updateUser(updatedUser);
       setSuccess('Profile updated successfully!');
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
@@ -94,79 +104,105 @@ const ProfilePage = () => {
   }
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ py: 4 }}>
-        <Paper elevation={2} sx={{ p: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Profile Settings
+    <>
+      <AppBar position="static" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar>
+          <Typography
+            variant="h6"
+            color="text.primary"
+            sx={{ flexGrow: 1, cursor: 'pointer' }}
+            onClick={() => navigate('/')}
+            tabIndex={0}
+            role="button"
+            aria-label="Go to Home"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                navigate('/');
+              }
+            }}
+          >
+            TeamConnect
           </Typography>
+          <ThemeToggle />
+          <Button variant="outlined" startIcon={<ExitToApp />} onClick={handleLogout} sx={{ ml: 2 }}>
+            Logout
+          </Button>
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="md">
+        <Box sx={{ py: 4 }}>
+          <Paper elevation={2} sx={{ p: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Profile Settings
+            </Typography>
 
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-              {success}
-            </Alert>
-          )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+                {success}
+              </Alert>
+            )}
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-              {error}
-            </Alert>
-          )}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+                {error}
+              </Alert>
+            )}
 
-          <form onSubmit={handleSubmit}>
-            <TextField
-              label="Email"
-              type="email"
-              fullWidth
-              value={user.email}
-              margin="normal"
-              disabled
-              helperText="Email cannot be changed"
-            />
-            <TextField
-              label="Username"
-              name="username"
-              fullWidth
-              required
-              value={formData.username || ''}
-              onChange={handleChange}
-              margin="normal"
-            />
-            <TextField
-              label="Avatar URL"
-              name="avatar"
-              fullWidth
-              value={formData.avatar || ''}
-              onChange={handleChange}
-              margin="normal"
-              helperText="Enter a URL to your avatar image"
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Status</InputLabel>
-              <Select
-                name="status"
-                value={formData.status || 'offline'}
-                label="Status"
-                onChange={handleStatusChange}
+            <form onSubmit={handleSubmit}>
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                value={user.email}
+                margin="normal"
+                disabled
+                helperText="Email cannot be changed"
+              />
+              <TextField
+                label="Username"
+                name="username"
+                fullWidth
+                required
+                value={formData.username || ''}
+                onChange={handleChange}
+                margin="normal"
+              />
+              <TextField
+                label="Avatar URL"
+                name="avatar"
+                fullWidth
+                value={formData.avatar || ''}
+                onChange={handleChange}
+                margin="normal"
+                helperText="Enter a URL to your avatar image"
+              />
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  name="status"
+                  value={formData.status || 'offline'}
+                  label="Status"
+                  onChange={handleStatusChange}
+                >
+                  <MenuItem value="online">Online</MenuItem>
+                  <MenuItem value="offline">Offline</MenuItem>
+                  <MenuItem value="away">Away</MenuItem>
+                  <MenuItem value="busy">Busy</MenuItem>
+                </Select>
+              </FormControl>
+              <Button
+                type="submit"
+                variant="contained"
+                sx={{ mt: 3 }}
+                disabled={loading}
               >
-                <MenuItem value="online">Online</MenuItem>
-                <MenuItem value="offline">Offline</MenuItem>
-                <MenuItem value="away">Away</MenuItem>
-                <MenuItem value="busy">Busy</MenuItem>
-              </Select>
-            </FormControl>
-            <Button
-              type="submit"
-              variant="contained"
-              sx={{ mt: 3 }}
-              disabled={loading}
-            >
-              {loading ? 'Updating...' : 'Update Profile'}
-            </Button>
-          </form>
-        </Paper>
-      </Box>
-    </Container>
+                {loading ? 'Updating...' : 'Update Profile'}
+              </Button>
+            </form>
+          </Paper>
+        </Box>
+      </Container>
+    </>
   );
 };
 

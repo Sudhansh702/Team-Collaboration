@@ -36,7 +36,8 @@ import {
   Lock,
   PersonAdd,
   Videocam,
-  Task as TaskIcon
+  Task as TaskIcon,
+  ArrowBack
 } from '@mui/icons-material';
 import channelService from '../services/channel.service';
 import teamService from '../services/team.service';
@@ -487,34 +488,36 @@ const WorkspacePage = () => {
             bgcolor: 'background.default'
           }}
         >
-          <Button
-            fullWidth
-            variant="outlined"
-            startIcon={<Settings />}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (teamId && team && user) {
-                navigate(`/teams/${teamId}/settings`);
-              }
-            }}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 500,
-              py: 1.25,
-              borderRadius: 2,
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': {
-                borderColor: 'primary.main',
-                bgcolor: 'primary.light',
-                color: 'primary.dark'
-              },
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Team Settings
-          </Button>
+          {isOwner() && (
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Settings />}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (teamId && team && user) {
+                  navigate(`/teams/${teamId}/settings`);
+                }
+              }}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 500,
+                py: 1.25,
+                borderRadius: 2,
+                borderColor: 'divider',
+                color: 'text.primary',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: 'primary.light',
+                  color: 'primary.dark'
+                },
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Team Settings
+            </Button>
+          )}
         </Box>
       </Drawer>
 
@@ -531,6 +534,20 @@ const WorkspacePage = () => {
           }}
         >
           <Toolbar sx={{ gap: 2, py: 1.5 }}>
+            <IconButton
+              onClick={() => navigate(-1)}
+              sx={{
+                color: 'text.primary',
+                mr: 1,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+                transition: 'all 0.2s ease'
+              }}
+              title="Go back"
+            >
+              <ArrowBack />
+            </IconButton>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography 
                 variant="h6" 
@@ -620,148 +637,151 @@ const WorkspacePage = () => {
             </Box>
           </Toolbar>
         </AppBar>
-        <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto', bgcolor: 'background.default' }}>
-          {error && (
-            <Fade in={!!error}>
+        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
+          <Box sx={{ p: 3, pb: 0 }}>
+            {error && (
+              <Fade in={!!error}>
+                <Alert 
+                  severity="error" 
+                  sx={{ 
+                    mb: 3,
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+                  }} 
+                  onClose={() => setError('')}
+                >
+                  {error}
+                </Alert>
+              </Fade>
+            )}
+
+            {!error && channels.length === 0 && !loading && (
               <Alert 
-                severity="error" 
+                severity="info" 
                 sx={{ 
                   mb: 3,
                   borderRadius: 2,
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-                }} 
-                onClose={() => setError('')}
+                }}
               >
-                {error}
+                No channels available. {(isOwner() || isAdmin()) && 'Create a channel to get started!'}
               </Alert>
-            </Fade>
-          )}
+            )}
+          </Box>
 
-          {!error && channels.length === 0 && !loading && (
-            <Alert 
-              severity="info" 
+          {/* Tabs for Messages, Tasks, and Meetings - Always visible */}
+          <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', px: 3 }}>
+            <Tabs
+              value={workspaceTab}
+              onChange={(_e, newValue) => setWorkspaceTab(newValue)}
               sx={{ 
-                mb: 3,
-                borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+                mb: 0,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                flexShrink: 0,
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  minHeight: 48,
+                  fontSize: '0.95rem',
+                  color: 'text.secondary',
+                  '&.Mui-selected': {
+                    color: 'primary.main',
+                    fontWeight: 600
+                  },
+                  '&:hover': {
+                    color: 'primary.main',
+                    bgcolor: 'primary.light',
+                    borderRadius: 1
+                  },
+                  transition: 'all 0.2s ease'
+                },
+                '& .MuiTabs-indicator': {
+                  height: 3,
+                  borderRadius: '3px 3px 0 0',
+                  bgcolor: 'primary.main'
+                }
               }}
             >
-              No channels available. {(isOwner() || isAdmin()) && 'Create a channel to get started!'}
-            </Alert>
-          )}
+              <Tab
+                icon={<Message fontSize="small" />}
+                iconPosition="start"
+                label="Messages"
+                value="messages"
+                sx={{ gap: 1 }}
+              />
+              <Tab
+                icon={<TaskIcon fontSize="small" />}
+                iconPosition="start"
+                label="Tasks"
+                value="tasks"
+                sx={{ gap: 1 }}
+              />
+              <Tab
+                icon={<Videocam fontSize="small" />}
+                iconPosition="start"
+                label="Meetings"
+                value="meetings"
+                sx={{ gap: 1 }}
+              />
+            </Tabs>
 
-          {selectedChannel ? (
-            <Fade in={!!selectedChannel}>
-              <Box>
-                {/* Tabs for Messages, Tasks, and Meetings */}
-                <Tabs
-                  value={workspaceTab}
-                  onChange={(_e, newValue) => setWorkspaceTab(newValue)}
-                  sx={{ 
-                    mb: 3,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    '& .MuiTab-root': {
-                      textTransform: 'none',
-                      fontWeight: 500,
-                      minHeight: 48,
-                      fontSize: '0.95rem',
-                      color: 'text.secondary',
-                      '&.Mui-selected': {
-                        color: 'primary.main',
-                        fontWeight: 600
-                      },
-                      '&:hover': {
-                        color: 'primary.main',
-                        bgcolor: 'primary.light',
-                        borderRadius: 1
-                      },
-                      transition: 'all 0.2s ease'
-                    },
-                    '& .MuiTabs-indicator': {
-                      height: 3,
-                      borderRadius: '3px 3px 0 0',
-                      bgcolor: 'primary.main'
-                    }
-                  }}
-                >
-                  <Tab
-                    icon={<Message fontSize="small" />}
-                    iconPosition="start"
-                    label="Messages"
-                    value="messages"
-                    sx={{ gap: 1 }}
-                  />
-                  <Tab
-                    icon={<TaskIcon fontSize="small" />}
-                    iconPosition="start"
-                    label="Tasks"
-                    value="tasks"
-                    sx={{ gap: 1 }}
-                  />
-                  <Tab
-                    icon={<Videocam fontSize="small" />}
-                    iconPosition="start"
-                    label="Meetings"
-                    value="meetings"
-                    sx={{ gap: 1 }}
-                  />
-                </Tabs>
-
-              {/* Content based on selected tab */}
+            {/* Content based on selected tab */}
+            <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', pt: 0 }}>
               {workspaceTab === 'messages' ? (
-                <MessagesPanel
-                  channelId={selectedChannel._id}
-                  channelName={selectedChannel.name}
-                  team={team}
-                />
+                selectedChannel ? (
+                  <MessagesPanel
+                    channelId={selectedChannel._id}
+                    channelName={selectedChannel.name}
+                    team={team}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexGrow: 1,
+                      textAlign: 'center',
+                      p: 4
+                    }}
+                  >
+                    <Message sx={{ fontSize: 80, color: 'text.disabled', opacity: 0.3, mb: 2 }} />
+                    <Typography variant="h5" color="text.secondary" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+                      No channel selected
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mb: 3 }}>
+                      Select a channel from the sidebar to start messaging, or create a new channel to get started
+                    </Typography>
+                    {(isOwner() || isAdmin()) && (
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={() => setCreateChannelDialogOpen(true)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 500,
+                          borderRadius: 2,
+                          px: 3,
+                          py: 1.25
+                        }}
+                      >
+                        Create Channel
+                      </Button>
+                    )}
+                  </Box>
+                )
               ) : workspaceTab === 'tasks' ? (
                 <TaskList
                   team={team}
-                  channelId={selectedChannel._id}
+                  channelId={selectedChannel?._id}
                 />
               ) : (
                 <MeetingList team={team} />
               )}
-              </Box>
-            </Fade>
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '60vh',
-                textAlign: 'center',
-                p: 4
-              }}
-            >
-              <Message sx={{ fontSize: 80, color: 'text.disabled', opacity: 0.3, mb: 2 }} />
-              <Typography variant="h5" color="text.secondary" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
-                No channel selected
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mb: 3 }}>
-                Select a channel from the sidebar to start messaging, or create a new channel to get started
-              </Typography>
-              {(isOwner() || isAdmin()) && (
-                <Button
-                  variant="contained"
-                  startIcon={<Add />}
-                  onClick={() => setCreateChannelDialogOpen(true)}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 500,
-                    borderRadius: 2,
-                    px: 3,
-                    py: 1.25
-                  }}
-                >
-                  Create Channel
-                </Button>
-              )}
             </Box>
-          )}
+          </Box>
         </Box>
       </Box>
 
