@@ -7,15 +7,9 @@ import {
   Typography, 
   Box, 
   Alert, 
-  Select, 
-  MenuItem, 
-  FormControl, 
-  InputLabel, 
-  SelectChangeEvent, 
   Toolbar, 
   AppBar,
   Avatar,
-  Chip,
   Divider,
   CircularProgress,
   Fade,
@@ -26,9 +20,6 @@ import {
   ExitToApp, 
   Person,
   CheckCircle,
-  RadioButtonUnchecked,
-  AccessTime,
-  Block,
   Edit,
   Image as ImageIcon
 } from '@mui/icons-material';
@@ -79,14 +70,6 @@ const ProfilePage = () => {
     });
   };
 
-  const handleStatusChange = (e: SelectChangeEvent<'online' | 'offline' | 'away' | 'busy'>) => {
-    const newStatus = e.target.value as 'online' | 'offline' | 'away' | 'busy';
-    setFormData({
-      ...formData,
-      status: newStatus || 'offline'
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -109,36 +92,6 @@ const ProfilePage = () => {
       setError(err.message || 'Failed to update profile');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online':
-        return <CheckCircle fontSize="small" />;
-      case 'offline':
-        return <RadioButtonUnchecked fontSize="small" />;
-      case 'away':
-        return <AccessTime fontSize="small" />;
-      case 'busy':
-        return <Block fontSize="small" />;
-      default:
-        return <RadioButtonUnchecked fontSize="small" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'success';
-      case 'offline':
-        return 'default';
-      case 'away':
-        return 'warning';
-      case 'busy':
-        return 'error';
-      default:
-        return 'default';
     }
   };
 
