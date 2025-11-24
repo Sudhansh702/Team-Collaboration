@@ -15,7 +15,18 @@ const StreamClientProvider = ({ children }: StreamClientProviderProps) => {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (loading || !user) return;
+    // Wait for auth to finish loading
+    if (loading) return;
+    
+    // Only initialize Stream client if user is authenticated
+    if (!user) {
+      // No user - clear any existing client and return
+      if (videoClient) {
+        setVideoClient(undefined);
+      }
+      return;
+    }
+    
     if (!API_KEY) {
       console.error('Stream API key is missing. Please set VITE_STREAM_API_KEY in your .env file');
       return;
@@ -48,7 +59,8 @@ const StreamClientProvider = ({ children }: StreamClientProviderProps) => {
     initializeClient();
   }, [user, loading]);
 
-  if (!videoClient) {
+  // Show loading only while auth is initializing
+  if (loading) {
     return (
       <Box
         sx={{
@@ -64,6 +76,13 @@ const StreamClientProvider = ({ children }: StreamClientProviderProps) => {
     );
   }
 
+  // If no user (unauthenticated), render children without StreamVideo wrapper
+  // This allows login/register pages to render properly
+  if (!user || !videoClient) {
+    return <>{children}</>;
+  }
+
+  // User is authenticated and client is initialized - wrap with StreamVideo
   return <StreamVideo client={videoClient}>{children}</StreamVideo>;
 };
 

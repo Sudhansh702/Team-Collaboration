@@ -330,7 +330,7 @@ const DashboardPage = () => {
                       variant="outlined"
                       fullWidth
                       startIcon={<Add />}
-                      onClick={() => navigate('/teams/create')}
+                      onClick={() => navigate('/teams/new')}
                       sx={{ py: 1.5, textTransform: 'none', fontWeight: 500 }}
                     >
                       Create New Team
@@ -374,7 +374,7 @@ const DashboardPage = () => {
                         variant="contained"
                         size="small"
                         startIcon={<Add />}
-                        onClick={() => navigate('/teams/create')}
+                        onClick={() => navigate('/teams/new')}
                         sx={{ mt: 2, textTransform: 'none' }}
                       >
                         Create Team
